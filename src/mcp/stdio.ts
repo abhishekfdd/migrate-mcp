@@ -7,14 +7,21 @@ import {
 import { createServer } from './server.js';
 import type { SiteInfoServiceFactory } from './site-info-tool.js';
 import type { DatabaseInfoServiceFactory } from './database-info-tool.js';
+import type { ContentTypeAnalyzerFactory } from './content-types-tool.js';
 
 export function startStdioServer(
   transport: Transport = new StdioServerTransport(),
   createSiteInfoService?: SiteInfoServiceFactory,
   createDatabaseInfoService?: DatabaseInfoServiceFactory,
+  createContentTypeAnalyzer?: ContentTypeAnalyzerFactory,
 ): StdioServerHandle {
   return serveStdio(
-    () => createServer(createSiteInfoService, createDatabaseInfoService),
+    () =>
+      createServer(
+        createSiteInfoService,
+        createDatabaseInfoService,
+        createContentTypeAnalyzer,
+      ),
     {
       transport,
       onerror: (error) => {

@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/server';
 import {
+  registerContentTypesTool,
+  type ContentTypeAnalyzerFactory,
+} from './content-types-tool.js';
+import {
   registerDatabaseInfoTool,
   type DatabaseInfoServiceFactory,
 } from './database-info-tool.js';
@@ -12,6 +16,7 @@ import {
 export function createServer(
   createSiteInfoService?: SiteInfoServiceFactory,
   createDatabaseInfoService?: DatabaseInfoServiceFactory,
+  createContentTypeAnalyzer?: ContentTypeAnalyzerFactory,
 ): McpServer {
   // This relative URL works from both src/mcp/ and dist/mcp/.
   const { version } = JSON.parse(
@@ -22,6 +27,7 @@ export function createServer(
 
   registerSiteInfoTool(server, createSiteInfoService);
   registerDatabaseInfoTool(server, createDatabaseInfoService);
+  registerContentTypesTool(server, createContentTypeAnalyzer);
 
   return server;
 }

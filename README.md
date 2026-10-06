@@ -4,8 +4,9 @@ An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
-`migration_site_info` and `migration_database_info`, which read metadata through
-the existing services and WP-CLI adapter. The temporary `ping` tool has been removed.
+`migration_site_info`, `migration_database_info`, and `migration_list_content_types`,
+which read metadata through the existing services and WP-CLI adapter. The temporary
+`ping` tool has been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -40,10 +41,11 @@ MySQL access are implemented.
 The internal `ContentTypeAnalyzer.analyze()` inspects all registered post types,
 including internal types, through fixed WP-CLI runtime PHP. This inspection loads
 plugins and the active theme so their custom registrations are visible; CLI
-packages remain skipped. It has no MCP tool yet. Results are sorted by name and
-include sorted support names and numeric counts of all stored rows for each
-registered type, across all statuses (including drafts, trash, and auto-drafts),
-for the active site only. Unregistered types with leftover rows are not included.
+packages remain skipped. The `migration_list_content_types` tool exposes the
+results, sorted by name, with sorted support names and numeric counts of all
+stored rows for each registered type, across all statuses (including drafts,
+trash, and auto-drafts), for the active site only. Unregistered types with
+leftover rows are not included.
 
 Metadata reflects the WP-CLI runtime context: registrations conditional on web,
 admin, or REST requests may differ, and WP-CLI configuration may skip extensions.
@@ -159,6 +161,27 @@ Size in bytes, database-default charset/collation, and multisite `siteCount` are
 included when available. Credentials and connection secrets are excluded.
 Counts cover visible base tables across the database; size is a metadata estimate.
 Errors follow the site information tool's `isError: true` convention.
+
+## Call the content type information tool
+
+Use the same server configuration and WordPress prerequisites. To list all
+registered content types, including built-in, internal, and custom types, send
+this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_list_content_types",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Input uses the same strict, absolute-path validation as the other tools. Results
+contain `structuredContent: { "contentTypes": [...] }` plus matching JSON in a
+text block. Each entry includes metadata such as capability type, REST
+configuration, supports, and numeric post counts, with optional values included
+when available. The analyzer's deterministic ordering is preserved. Counts cover
+all statuses for the active site; this inspection loads plugins and the active
+theme as described above. Errors use the same `isError: true` convention.
 
 ## Development
 

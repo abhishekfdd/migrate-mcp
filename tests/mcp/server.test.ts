@@ -53,11 +53,12 @@ describe('MCP server', () => {
     });
   });
 
-  it('exposes the site and database information tools', async () => {
+  it('exposes the site, database, and content type information tools', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name)).toEqual([
       'migration_site_info',
       'migration_database_info',
+      'migration_list_content_types',
     ]);
     expect(tools[0]).toMatchObject({
       name: 'migration_site_info',

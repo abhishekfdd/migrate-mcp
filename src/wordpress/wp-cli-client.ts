@@ -41,6 +41,29 @@ const cliInfoSchema = z.object({
 
 export type WpCliInfo = z.infer<typeof cliInfoSchema>;
 
+const siteUrlSchema = z
+  .string()
+  .url()
+  .regex(/^https?:\/\//);
+const siteMetadataSchema = z.object({
+  isMultisite: z.boolean(),
+  siteUrl: siteUrlSchema,
+  homeUrl: siteUrlSchema,
+  // WordPress permits an empty prefix as well as letters, numbers, and underscores.
+  tablePrefix: z.string().regex(/^[A-Za-z0-9_]*$/),
+});
+
+export type WpSiteMetadata = z.infer<typeof siteMetadataSchema>;
+
+// Fixed read-only PHP: never interpolate paths, options, or caller-supplied code.
+const siteMetadataPhp = `global $wpdb;
+echo wp_json_encode(array(
+    'isMultisite' => (bool) is_multisite(),
+    'siteUrl' => get_option('siteurl'),
+    'homeUrl' => get_option('home'),
+    'tablePrefix' => $wpdb->prefix
+));`;
+
 export class WpCliOutputError extends Error {
   constructor(command: string, cause?: unknown) {
     super(`Invalid output from wp ${command}`, { cause });
@@ -93,6 +116,15 @@ export class WpCliClient {
       return cliInfoSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('cli info', error);
+    }
+  }
+
+  async getSiteMetadata(): Promise<WpSiteMetadata> {
+    const { stdout } = await this.#execute(['eval', siteMetadataPhp]);
+    try {
+      return siteMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (site metadata)', error);
     }
   }
 

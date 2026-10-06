@@ -4,9 +4,9 @@ An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes only an
-internal `ping` tool to verify connectivity. An internal WP-CLI adapter supports
-core version and CLI environment information; it is not connected to MCP tools.
-WordPress analysis and migration tools are not available yet.
+internal `ping` tool to verify connectivity. An internal site information service
+reads installation metadata through WP-CLI; it is not connected to MCP tools.
+Migration tools are not available yet.
 
 ## Scope
 
@@ -22,6 +22,19 @@ focused tests. MCP infrastructure uses the official
 package. The internal `WpCliClient` uses the process runner with fixed metadata
 commands, a WordPress path, and an optional trusted WP binary path (default `wp`).
 Its tests inject a mock runner and do not require WordPress or WP-CLI.
+
+`SiteInfoService.getSiteInfo()` returns the WordPress version, multisite status,
+site URL, home URL, active site's table prefix, PHP version used by WP-CLI, and
+WP-CLI version. The PHP version may differ from the web server's runtime. On
+multisite, the prefix is for the site selected by WP-CLI and may include a blog
+ID. URLs retain WordPress's effective option values without normalization.
+
+The adapter reads runtime metadata using fixed internal PHP through `wp eval`;
+it accepts no caller-supplied PHP or SQL. These reads bootstrap WordPress with
+plugins, themes, and CLI packages skipped. Trusted installation code, including
+must-use plugins and drop-ins, can still run during bootstrap; this is not an
+isolation boundary for untrusted WordPress code. No mutation commands or direct
+MySQL access are implemented.
 
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
@@ -98,7 +111,7 @@ the initial implementation is under development.
 src/
   index.ts       Small application entry point
   mcp/           MCP server factory, ping tool, and stdio setup
-  wordpress/     WP-CLI adapter for read-only metadata commands
+  wordpress/     WP-CLI adapter and site information service
   migration/     Reserved for migration analysis and planning
   utils/         Safe process execution utility
 tests/           Vitest tests

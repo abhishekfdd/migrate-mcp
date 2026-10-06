@@ -117,7 +117,7 @@ describe('WpCliClient', () => {
     });
   });
 
-  it.each(['getCoreVersion', 'getCliInfo'] as const)(
+  it.each(['getCoreVersion', 'getCliInfo', 'getSiteMetadata'] as const)(
     'preserves process execution errors from %s',
     async (method) => {
       const { runner, client } = setup('');
@@ -135,6 +135,73 @@ describe('WpCliClient', () => {
       await expect(client[method]()).rejects.toBe(error);
     },
   );
+
+  it('reads site metadata with fixed PHP and keeps the path outside the code', async () => {
+    const metadata = {
+      isMultisite: true,
+      siteUrl: 'https://example.test/wordpress',
+      homeUrl: 'https://example.test',
+      tablePrefix: 'custom_2_',
+    };
+    const { runner } = setup(JSON.stringify(metadata));
+    const path = '/sites/example\' "; echo injected; --exec=other';
+    const client = new WpCliClient({ wordpressPath: path }, runner);
+    await expect(client.getSiteMetadata()).resolves.toEqual(metadata);
+    expect(runner).toHaveBeenCalledExactlyOnceWith(
+      'wp',
+      [
+        'eval',
+        `global $wpdb;
+echo wp_json_encode(array(
+    'isMultisite' => (bool) is_multisite(),
+    'siteUrl' => get_option('siteurl'),
+    'homeUrl' => get_option('home'),
+    'tablePrefix' => $wpdb->prefix
+));`,
+        `--path=${path}`,
+        ...commonArgs.slice(1),
+      ],
+      {},
+    );
+  });
+
+  it('accepts a single site with local URLs and an empty table prefix', async () => {
+    const metadata = {
+      isMultisite: false,
+      siteUrl: 'http://localhost:8080/wp/',
+      homeUrl: 'http://localhost:8080/',
+      tablePrefix: '',
+    };
+    const { client } = setup(JSON.stringify(metadata));
+    await expect(client.getSiteMetadata()).resolves.toEqual(metadata);
+  });
+
+  it.each([
+    'not json',
+    'null',
+    '[]',
+    '{}',
+    ...[
+      { isMultisite: 'false' },
+      { siteUrl: false },
+      { homeUrl: '' },
+      { homeUrl: 'javascript:alert(1)' },
+      { tablePrefix: 'invalid-prefix' },
+    ].map((invalid) =>
+      JSON.stringify({
+        isMultisite: false,
+        siteUrl: 'https://example.test/wp',
+        homeUrl: 'https://example.test',
+        tablePrefix: 'wp_',
+        ...invalid,
+      }),
+    ),
+  ])('rejects malformed site metadata %s', async (stdout) => {
+    const { client } = setup(stdout);
+    await expect(client.getSiteMetadata()).rejects.toBeInstanceOf(
+      WpCliOutputError,
+    );
+  });
 
   it.each(['', '   ', 'invalid\0path'])(
     'rejects an invalid path %j',

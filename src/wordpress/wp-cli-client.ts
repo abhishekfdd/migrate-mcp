@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import {
+  databaseMetadataPhp,
+  databaseMetadataSchema,
+  type WpDatabaseMetadata,
+} from './database-metadata.js';
+import {
   runProcess,
   type ProcessOptions,
   type ProcessResult,
@@ -125,6 +130,15 @@ export class WpCliClient {
       return siteMetadataSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('eval (site metadata)', error);
+    }
+  }
+
+  async getDatabaseMetadata(): Promise<WpDatabaseMetadata> {
+    const { stdout } = await this.#execute(['eval', databaseMetadataPhp]);
+    try {
+      return databaseMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (database metadata)', error);
     }
   }
 

@@ -53,9 +53,12 @@ describe('MCP server', () => {
     });
   });
 
-  it('exposes only the read-only site information tool', async () => {
+  it('exposes the site and database information tools', async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(1);
+    expect(tools.map((tool) => tool.name)).toEqual([
+      'migration_site_info',
+      'migration_database_info',
+    ]);
     expect(tools[0]).toMatchObject({
       name: 'migration_site_info',
       inputSchema: {

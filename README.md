@@ -4,8 +4,8 @@ An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
-`migration_site_info`, which reads installation metadata through the site
-information service and WP-CLI adapter. The temporary `ping` tool has been removed.
+`migration_site_info` and `migration_database_info`, which read metadata through
+the existing services and WP-CLI adapter. The temporary `ping` tool has been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -122,6 +122,26 @@ The same JSON is returned in a text content block for compatibility. Known
 execution failures return `isError: true` with an error code and guidance, such
 as `EXECUTABLE_NOT_FOUND` or `TIMEOUT`. Raw subprocess output and exception
 details are not included in tool errors.
+
+## Call the database information tool
+
+Use the same server configuration and WordPress prerequisites. After connecting,
+call `migration_database_info` with the same strict, absolute-path input:
+
+```json
+{
+  "name": "migration_database_info",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+This is the `params` object for a `tools/call` request. The result contains
+`structuredContent` plus the same JSON in a text block: database name and host,
+table prefix, numeric total/core/custom table counts, and multisite status.
+Size in bytes, database-default charset/collation, and multisite `siteCount` are
+included when available. Credentials and connection secrets are excluded.
+Counts cover visible base tables across the database; size is a metadata estimate.
+Errors follow the site information tool's `isError: true` convention.
 
 ## Development
 

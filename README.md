@@ -66,6 +66,28 @@ labels, descriptions, REST bases, and rewrite slugs are reported when available;
 implicit REST bases are not inferred. The runtime and bootstrap limitations
 above also apply. The `migration_list_taxonomies` tool exposes these results.
 
+The internal `CustomTableAnalyzer.analyze()` lists visible base tables that are
+not in the installed WordPress core table mapping. It shares core discovery with
+database information: core class defaults are mapped through `$wpdb` for each
+registered blog, including network tables and custom user-table overrides.
+Views are excluded. Legacy tables, deleted-blog tables, and tables belonging to
+other installations may appear in the custom list; custom does not prove plugin
+ownership. No custom-table MCP tool is registered yet.
+
+Table statistics and common reference-column names come from `information_schema`,
+without reading table contents or performing exact row counts. Row counts and
+data/index sizes are metadata estimates; unavailable statistics are omitted.
+Owner names and `referenceHints` are naming hints, not verified ownership or
+foreign keys. Results are sorted by full table name. `usesWordPressPrefix` tests
+the active site's prefix; `logicalName` removes a matching registered site prefix
+or the network base prefix. Known numbered subsite prefixes yield `siteId` and
+`siteSpecific: true`. Base-prefixed multisite custom tables have ambiguous
+`network-or-main-site` scope; unknown numeric prefixes remain `unknown`.
+An empty prefix matches every name but does not establish site scope. Metadata
+work scales with table/site counts, not data volume; the existing process timeout
+and 1 MiB output limit still apply to very large inventories. The database
+inspection bootstrap limitations above also apply.
+
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
 server as described below; client-specific integrations have not been validated.
@@ -253,7 +275,7 @@ src/
   index.ts       Small application entry point
   mcp/           MCP server factory, site information tool, and stdio setup
   wordpress/     WP-CLI adapter and site information service
-  migration/     Content type and taxonomy analyzers
+  migration/     Content type, taxonomy, and custom table analyzers
   utils/         Safe process execution utility
 tests/           Vitest tests
 ```

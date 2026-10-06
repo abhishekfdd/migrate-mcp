@@ -15,6 +15,11 @@ import {
   type WpTaxonomyMetadata,
 } from './taxonomy-metadata.js';
 import {
+  tableMetadataPhp,
+  tableMetadataSchema,
+  type WpTableMetadata,
+} from './table-metadata.js';
+import {
   runProcess,
   type ProcessOptions,
   type ProcessResult,
@@ -172,6 +177,15 @@ export class WpCliClient {
       return taxonomyMetadataSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('eval (taxonomy metadata)', error);
+    }
+  }
+
+  async getTableMetadata(): Promise<WpTableMetadata> {
+    const { stdout } = await this.#execute(['eval', tableMetadataPhp]);
+    try {
+      return tableMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (table metadata)', error);
     }
   }
 

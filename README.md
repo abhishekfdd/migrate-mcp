@@ -3,10 +3,10 @@
 An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
-**Status: early development.** The server runs over stdio and exposes only an
-internal `ping` tool to verify connectivity. An internal site information service
-reads installation metadata through WP-CLI; it is not connected to MCP tools.
-Migration tools are not available yet.
+**Status: early development.** The server runs over stdio and exposes
+`migration_site_info`, which reads installation metadata through the site
+information service and WP-CLI adapter. The temporary `ping` tool has been removed.
+Migration execution is not implemented.
 
 ## Scope
 
@@ -72,14 +72,62 @@ a supported Node.js version. Launching Node directly keeps npm's script banners
 out of the protocol stream. Rebuild after changing TypeScript source files.
 
 The server identifies itself as `wp-migrate-mcp`, using the version from
-`package.json`. List tools and call `ping` with `{}` to receive
-`structuredContent: { "status": "ok" }` plus the same JSON in a text content block
-for compatibility. This internal check does not access WordPress or run commands.
+`package.json`. To call `migration_site_info`, the server host needs PHP, `wp` on
+its process `PATH`, and access to a trusted WordPress installation and its
+database. The configured server command above is unchanged; the WordPress path
+is provided as a tool argument, not as the server's working directory.
+
+## Call the site information tool
+
+After the MCP client connects, invoke `migration_site_info` with:
+
+```json
+{
+  "path": "/absolute/path/to/wordpress"
+}
+```
+
+The path must be absolute on the server host. Empty paths, NUL bytes, and extra
+input properties are rejected. A `tools/call` request looks like:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "migration_site_info",
+    "arguments": {
+      "path": "/absolute/path/to/wordpress"
+    }
+  }
+}
+```
+
+Successful results include a `structuredContent` object such as:
+
+```json
+{
+  "wordpressVersion": "6.8.3",
+  "isMultisite": false,
+  "siteUrl": "https://example.com/wordpress",
+  "homeUrl": "https://example.com",
+  "tablePrefix": "wp_",
+  "phpVersion": "8.3.0",
+  "wpCliVersion": "2.12.0"
+}
+```
+
+The same JSON is returned in a text content block for compatibility. Known
+execution failures return `isError: true` with an error code and guidance, such
+as `EXECUTABLE_NOT_FOUND` or `TIMEOUT`. Raw subprocess output and exception
+details are not included in tool errors.
 
 ## Development
 
 Requirements: Node.js 22.13+ (22.x) or 24+ and npm. WordPress and WP-CLI are not needed
-to run the server or its tests.
+to start the server, discover tools, or run its mocked tests. Calling the site
+information tool requires the installation described above.
 
 ```sh
 npm ci
@@ -110,7 +158,7 @@ the initial implementation is under development.
 ```text
 src/
   index.ts       Small application entry point
-  mcp/           MCP server factory, ping tool, and stdio setup
+  mcp/           MCP server factory, site information tool, and stdio setup
   wordpress/     WP-CLI adapter and site information service
   migration/     Reserved for migration analysis and planning
   utils/         Safe process execution utility

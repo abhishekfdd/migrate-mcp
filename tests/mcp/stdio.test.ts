@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { expect, it, vi } from 'vitest';
 import { startStdioServer } from '../../src/mcp/stdio.js';
 
-it('serves initialization and ping as JSON-RPC over stdio streams', async () => {
+it('serves initialization and site info as JSON-RPC over stdio streams', async () => {
   const input = new PassThrough();
   const output = new PassThrough();
   let received = '';
@@ -11,7 +11,22 @@ it('serves initialization and ping as JSON-RPC over stdio streams', async () => 
   output.on('data', (chunk: string) => {
     received += chunk;
   });
-  const handle = startStdioServer(new StdioServerTransport(input, output));
+  const info = {
+    wordpressVersion: '6.8.3',
+    isMultisite: false,
+    siteUrl: 'https://example.test',
+    homeUrl: 'https://example.test',
+    tablePrefix: 'wp_',
+    phpVersion: '8.3.0',
+    wpCliVersion: '2.12.0',
+  };
+  const createService = vi
+    .fn()
+    .mockReturnValue({ getSiteInfo: vi.fn().mockResolvedValue(info) });
+  const handle = startStdioServer(
+    new StdioServerTransport(input, output),
+    createService,
+  );
   const messages = () =>
     received
       .trim()
@@ -49,7 +64,7 @@ it('serves initialization and ping as JSON-RPC over stdio streams', async () => 
         jsonrpc: '2.0',
         id: 2,
         method: 'tools/call',
-        params: { name: 'ping', arguments: {} },
+        params: { name: 'migration_site_info', arguments: { path: '/site' } },
       }) + '\n',
     );
     await vi.waitFor(() => {
@@ -58,11 +73,12 @@ it('serves initialization and ping as JSON-RPC over stdio streams', async () => 
         jsonrpc: '2.0',
         id: 2,
         result: {
-          structuredContent: { status: 'ok' },
-          content: [{ type: 'text', text: '{"status":"ok"}' }],
+          structuredContent: info,
+          content: [{ type: 'text', text: JSON.stringify(info) }],
         },
       });
     });
+    expect(createService).toHaveBeenCalledExactlyOnceWith('/site');
   } finally {
     await handle.close();
     input.destroy();

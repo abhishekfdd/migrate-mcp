@@ -5,8 +5,9 @@ agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
-and `migration_list_taxonomies`, which read metadata through the existing services
-and WP-CLI adapter. The temporary `ping` tool has been removed.
+`migration_list_taxonomies`, and `migration_list_custom_tables`, which read
+metadata through the existing services and WP-CLI adapter. The temporary `ping`
+tool has been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -72,7 +73,7 @@ database information: core class defaults are mapped through `$wpdb` for each
 registered blog, including network tables and custom user-table overrides.
 Views are excluded. Legacy tables, deleted-blog tables, and tables belonging to
 other installations may appear in the custom list; custom does not prove plugin
-ownership. No custom-table MCP tool is registered yet.
+ownership. The `migration_list_custom_tables` tool exposes these results.
 
 Table statistics and common reference-column names come from `information_schema`,
 without reading table contents or performing exact row counts. Row counts and
@@ -237,6 +238,29 @@ Optional metadata is included when available. Taxonomies and their object types
 retain the analyzer's deterministic ordering. Counts include unused terms for
 the active site. Runtime and bootstrap limitations described above apply, and
 errors use the same `isError: true` convention.
+
+## Call the custom table information tool
+
+Use the same server configuration and WordPress prerequisites. To list non-core
+database tables with estimated rows and sizes, multisite scope, and likely plugin
+ownership where it can be inferred, send this `params` object in a `tools/call`
+request:
+
+```json
+{
+  "name": "migration_list_custom_tables",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Input uses the same strict, absolute-path validation as the other tools. Results
+contain `structuredContent: { "customTables": [...] }` plus matching JSON in a
+text block, preserving the analyzer's ordering, numeric estimates, optional
+metadata, `scope`, and `referenceHints`. Ownership and reference hints are not
+verified relationships; base-prefixed multisite tables can retain ambiguous
+`network-or-main-site` scope. The tool adds no filtering and exposes no SQL,
+commands, or credentials. Existing analyzer limitations above apply; errors use
+the same `isError: true` convention.
 
 ## Development
 

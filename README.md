@@ -4,9 +4,9 @@ An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
-`migration_site_info`, `migration_database_info`, and `migration_list_content_types`,
-which read metadata through the existing services and WP-CLI adapter. The temporary
-`ping` tool has been removed.
+`migration_site_info`, `migration_database_info`, `migration_list_content_types`,
+and `migration_list_taxonomies`, which read metadata through the existing services
+and WP-CLI adapter. The temporary `ping` tool has been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -64,7 +64,7 @@ unused terms; they do not count post assignments or validate referential
 integrity. Unregistered taxonomies with leftover rows are not included. Optional
 labels, descriptions, REST bases, and rewrite slugs are reported when available;
 implicit REST bases are not inferred. The runtime and bootstrap limitations
-above also apply. No taxonomy MCP tool is registered yet.
+above also apply. The `migration_list_taxonomies` tool exposes these results.
 
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
@@ -193,6 +193,28 @@ configuration, supports, and numeric post counts, with optional values included
 when available. The analyzer's deterministic ordering is preserved. Counts cover
 all statuses for the active site; this inspection loads plugins and the active
 theme as described above. Errors use the same `isError: true` convention.
+
+## Call the taxonomy information tool
+
+Use the same server configuration and WordPress prerequisites. To list all
+registered taxonomies, including built-in, internal, and custom taxonomies,
+send this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_list_taxonomies",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Input uses the same strict, absolute-path validation as the other tools. Results
+contain `structuredContent: { "taxonomies": [...] }` plus matching JSON in a text
+block. Entries preserve the analyzer's metadata: associated object types, REST
+configuration, rewrite settings, built-in/custom status, and numeric term counts.
+Optional metadata is included when available. Taxonomies and their object types
+retain the analyzer's deterministic ordering. Counts include unused terms for
+the active site. Runtime and bootstrap limitations described above apply, and
+errors use the same `isError: true` convention.
 
 ## Development
 

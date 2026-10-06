@@ -8,12 +8,14 @@ import { createServer } from './server.js';
 import type { SiteInfoServiceFactory } from './site-info-tool.js';
 import type { DatabaseInfoServiceFactory } from './database-info-tool.js';
 import type { ContentTypeAnalyzerFactory } from './content-types-tool.js';
+import type { TaxonomyAnalyzerFactory } from './taxonomies-tool.js';
 
 export function startStdioServer(
   transport: Transport = new StdioServerTransport(),
   createSiteInfoService?: SiteInfoServiceFactory,
   createDatabaseInfoService?: DatabaseInfoServiceFactory,
   createContentTypeAnalyzer?: ContentTypeAnalyzerFactory,
+  createTaxonomyAnalyzer?: TaxonomyAnalyzerFactory,
 ): StdioServerHandle {
   return serveStdio(
     () =>
@@ -21,6 +23,7 @@ export function startStdioServer(
         createSiteInfoService,
         createDatabaseInfoService,
         createContentTypeAnalyzer,
+        createTaxonomyAnalyzer,
       ),
     {
       transport,

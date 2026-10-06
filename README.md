@@ -31,10 +31,27 @@ ID. URLs retain WordPress's effective option values without normalization.
 
 The adapter reads runtime metadata using fixed internal PHP through `wp eval`;
 it accepts no caller-supplied PHP or SQL. These reads bootstrap WordPress with
-plugins, themes, and CLI packages skipped. Trusted installation code, including
-must-use plugins and drop-ins, can still run during bootstrap; this is not an
+plugins, themes, and CLI packages skipped for site and database metadata. Trusted
+installation code, including must-use plugins and drop-ins, can still run during
+bootstrap; this is not an
 isolation boundary for untrusted WordPress code. No mutation commands or direct
 MySQL access are implemented.
+
+The internal `ContentTypeAnalyzer.analyze()` inspects all registered post types,
+including internal types, through fixed WP-CLI runtime PHP. This inspection loads
+plugins and the active theme so their custom registrations are visible; CLI
+packages remain skipped. It has no MCP tool yet. Results are sorted by name and
+include sorted support names and numeric counts of all stored rows for each
+registered type, across all statuses (including drafts, trash, and auto-drafts),
+for the active site only. Unregistered types with leftover rows are not included.
+
+Metadata reflects the WP-CLI runtime context: registrations conditional on web,
+admin, or REST requests may differ, and WP-CLI configuration may skip extensions.
+Loading trusted extension code can have its own bootstrap side effects. REST base
+and rewrite slug are reported when present on the runtime object; an implicit
+REST base is not inferred. `hasArchive` preserves a custom archive slug string.
+WordPress may normalize capability types to a singular string, so the original
+plural registration cannot always be recovered. Labels follow the runtime locale.
 
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
@@ -180,13 +197,12 @@ src/
   index.ts       Small application entry point
   mcp/           MCP server factory, site information tool, and stdio setup
   wordpress/     WP-CLI adapter and site information service
-  migration/     Reserved for migration analysis and planning
+  migration/     Content type analyzer
   utils/         Safe process execution utility
 tests/           Vitest tests
 ```
 
-The reserved directories contain only `.gitkeep` files so Git retains them.
-No migration functionality has been implemented.
+Migration execution has not been implemented.
 
 ## License
 

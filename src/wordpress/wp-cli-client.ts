@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import {
+  contentTypeMetadataPhp,
+  contentTypeMetadataSchema,
+  type WpContentTypeMetadata,
+} from './content-type-metadata.js';
+import {
   databaseMetadataPhp,
   databaseMetadataSchema,
   type WpDatabaseMetadata,
@@ -142,15 +147,30 @@ export class WpCliClient {
     }
   }
 
-  #execute(args: readonly string[]): Promise<ProcessResult> {
+  async getContentTypeMetadata(): Promise<WpContentTypeMetadata[]> {
+    // Plugins and themes must load to register their custom post types.
+    const { stdout } = await this.#execute(
+      ['eval', contentTypeMetadataPhp],
+      true,
+    );
+    try {
+      return contentTypeMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (content type metadata)', error);
+    }
+  }
+
+  #execute(
+    args: readonly string[],
+    loadWordPressExtensions = false,
+  ): Promise<ProcessResult> {
     return this.#runner(
       this.#wpBinaryPath,
       [
         ...args,
         `--path=${this.#wordpressPath}`,
         '--no-color',
-        '--skip-plugins',
-        '--skip-themes',
+        ...(loadWordPressExtensions ? [] : ['--skip-plugins', '--skip-themes']),
         '--skip-packages',
       ],
       this.#processOptions,

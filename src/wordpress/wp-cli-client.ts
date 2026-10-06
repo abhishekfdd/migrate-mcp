@@ -10,6 +10,11 @@ import {
   type WpDatabaseMetadata,
 } from './database-metadata.js';
 import {
+  taxonomyMetadataPhp,
+  taxonomyMetadataSchema,
+  type WpTaxonomyMetadata,
+} from './taxonomy-metadata.js';
+import {
   runProcess,
   type ProcessOptions,
   type ProcessResult,
@@ -157,6 +162,16 @@ export class WpCliClient {
       return contentTypeMetadataSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('eval (content type metadata)', error);
+    }
+  }
+
+  async getTaxonomyMetadata(): Promise<WpTaxonomyMetadata[]> {
+    // Plugins and themes must load to register their custom taxonomies.
+    const { stdout } = await this.#execute(['eval', taxonomyMetadataPhp], true);
+    try {
+      return taxonomyMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (taxonomy metadata)', error);
     }
   }
 

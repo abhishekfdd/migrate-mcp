@@ -55,6 +55,17 @@ REST base is not inferred. `hasArchive` preserves a custom archive slug string.
 WordPress may normalize capability types to a singular string, so the original
 plural registration cannot always be recovered. Labels follow the runtime locale.
 
+The internal `TaxonomyAnalyzer.analyze()` uses the same runtime inspection
+approach, including loading plugins and the active theme. It returns all
+registered taxonomies (including internal ones), their runtime built-in status,
+metadata, sorted object types, and numeric term counts, sorted by taxonomy name.
+Counts cover stored rows in the active site's term taxonomy table, including
+unused terms; they do not count post assignments or validate referential
+integrity. Unregistered taxonomies with leftover rows are not included. Optional
+labels, descriptions, REST bases, and rewrite slugs are reported when available;
+implicit REST bases are not inferred. The runtime and bootstrap limitations
+above also apply. No taxonomy MCP tool is registered yet.
+
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
 server as described below; client-specific integrations have not been validated.
@@ -220,7 +231,7 @@ src/
   index.ts       Small application entry point
   mcp/           MCP server factory, site information tool, and stdio setup
   wordpress/     WP-CLI adapter and site information service
-  migration/     Content type analyzer
+  migration/     Content type and taxonomy analyzers
   utils/         Safe process execution utility
 tests/           Vitest tests
 ```

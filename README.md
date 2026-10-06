@@ -97,7 +97,7 @@ src/
   mcp/           MCP server factory, ping tool, and stdio setup
   wordpress/     Reserved for WordPress services and the WP-CLI adapter
   migration/     Reserved for migration analysis and planning
-  utils/         Reserved for shared utilities as needed
+  utils/         Safe process execution utility
 tests/           Vitest tests
 ```
 

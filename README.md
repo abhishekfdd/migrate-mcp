@@ -4,8 +4,9 @@ An open-source Model Context Protocol (MCP) server being built to help AI coding
 agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes only an
-internal `ping` tool to verify connectivity. It does not invoke WP-CLI or provide
-WordPress analysis or migration tools.
+internal `ping` tool to verify connectivity. An internal WP-CLI adapter supports
+core version and CLI environment information; it is not connected to MCP tools.
+WordPress analysis and migration tools are not available yet.
 
 ## Scope
 
@@ -18,7 +19,9 @@ and puts WP-CLI behind an adapter using safe process execution without arbitrary
 shell commands. Services will return structured, JSON-friendly results and have
 focused tests. MCP infrastructure uses the official
 [TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) v2 server
-package. WP-CLI integration will be added in a later step.
+package. The internal `WpCliClient` uses the process runner with fixed metadata
+commands, a WordPress path, and an optional trusted WP binary path (default `wp`).
+Its tests inject a mock runner and do not require WordPress or WP-CLI.
 
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
@@ -95,7 +98,7 @@ the initial implementation is under development.
 src/
   index.ts       Small application entry point
   mcp/           MCP server factory, ping tool, and stdio setup
-  wordpress/     Reserved for WordPress services and the WP-CLI adapter
+  wordpress/     WP-CLI adapter for read-only metadata commands
   migration/     Reserved for migration analysis and planning
   utils/         Safe process execution utility
 tests/           Vitest tests

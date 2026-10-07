@@ -5,9 +5,10 @@ agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
-`migration_list_taxonomies`, `migration_list_custom_tables`, and
-`migration_analyze_users`, which read metadata through the existing services and
-WP-CLI adapter. The temporary `ping` tool has been removed.
+`migration_list_taxonomies`, `migration_list_custom_tables`,
+`migration_analyze_users`, and `migration_analyze_media`, which read metadata
+through the existing services and WP-CLI adapter. The temporary `ping` tool has
+been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -124,7 +125,8 @@ No user records or arbitrary usermeta values are loaded into the Node process.
 The internal `MediaAnalyzer.analyze()` returns attachment summaries for the active
 site only, including all stored attachment statuses, deterministic MIME/category
 counts, ID bounds, missing metadata, missing parents, and upload configuration.
-It does not register a media MCP tool. `unattachedAttachments` means
+The `migration_analyze_media` tool exposes the default summary.
+`unattachedAttachments` means
 `post_parent = 0` and is not a broken-media warning; `orphanedAttachments` means a
 nonzero parent ID has no existing post. Missing metadata means absent/empty data,
 not invalid serialized data. Some formats legitimately lack attachment metadata.
@@ -362,6 +364,33 @@ users table. Optional fields remain absent when unavailable. User records, auth
 secrets, raw capabilities, and duplicate email/login values are excluded.
 Existing analyzer limitations above apply. Errors use `isError: true` with
 sanitized guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
+
+## Call the media analysis tool
+
+Use the same server configuration and WordPress prerequisites. To report attachment
+counts, MIME distribution, missing metadata, unattached/orphaned attachments,
+upload configuration, external-reference indicators, and migration risks, send
+this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_analyze_media",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Input uses the same strict, absolute-path validation as the other tools; only
+`path` is accepted. The domain analysis is returned directly in `structuredContent`
+plus matching JSON text, preserving numeric counts/IDs, MIME/category objects,
+booleans, optional fields, and ordered warnings. `siteId` and `multisite` identify
+the active site. Upload paths are limited to the configuration returned by the
+analyzer; individual attachment paths and file contents are not returned.
+
+This tool calls the analyzer's default summary mode. Physical file checks are
+not enabled: `missingLocalFiles` and `checkedLocalFiles` are omitted, with a
+`LOCAL_FILES_NOT_CHECKED` warning. It does not accept a `checkLocalFiles` option.
+Other analyzer limitations above apply. Failures use `isError: true` and sanitized
+guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
 
 ## Development
 

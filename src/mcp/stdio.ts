@@ -11,6 +11,7 @@ import type { ContentTypeAnalyzerFactory } from './content-types-tool.js';
 import type { TaxonomyAnalyzerFactory } from './taxonomies-tool.js';
 import type { CustomTableAnalyzerFactory } from './custom-tables-tool.js';
 import type { UserAnalyzerFactory } from './users-tool.js';
+import type { MediaAnalyzerFactory } from './media-tool.js';
 
 export function startStdioServer(
   transport: Transport = new StdioServerTransport(),
@@ -20,6 +21,7 @@ export function startStdioServer(
   createTaxonomyAnalyzer?: TaxonomyAnalyzerFactory,
   createCustomTableAnalyzer?: CustomTableAnalyzerFactory,
   createUserAnalyzer?: UserAnalyzerFactory,
+  createMediaAnalyzer?: MediaAnalyzerFactory,
 ): StdioServerHandle {
   return serveStdio(
     () =>
@@ -30,6 +32,7 @@ export function startStdioServer(
         createTaxonomyAnalyzer,
         createCustomTableAnalyzer,
         createUserAnalyzer,
+        createMediaAnalyzer,
       ),
     {
       transport,

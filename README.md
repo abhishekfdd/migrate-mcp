@@ -89,6 +89,37 @@ work scales with table/site counts, not data volume; the existing process timeou
 and 1 MiB output limit still apply to very large inventories. The database
 inspection bootstrap limitations above also apply.
 
+The internal `UserAnalyzer.analyze()` returns summary-only user information. Total
+users and minimum/maximum IDs cover the shared users table once, even on multisite;
+`maxUserId` is the highest currently assigned ID, not an auto-increment forecast.
+`roleSiteId` identifies the active site for role counts, administrator count, and
+users without a recognized role. Role counts can overlap for users with multiple
+roles. On multisite, `siteUserCount` and per-site memberships count distinct
+existing users with stored site capability keys, including empty/malformed values;
+they are membership evidence, not effective access checks or super-admin counts.
+Network users with no active-site membership are excluded from its role summary.
+Single-site role summaries include every user. No user MCP tool is registered yet.
+
+Duplicate email/login counts report extra accounts beyond the first in each
+equal-value group, including blank values, using database collation semantics.
+Actual emails, logins, passwords, activation keys, and auth-related meta values
+are never returned. Aggregate queries count duplicates, memberships, orphaned
+usermeta rows, and existing users with more than 1,000 meta rows. Capability-key
+checks cover this installation's base prefix; unknown site prefixes, unexpected
+keys, and duplicate rows become warnings. Active-site role parsing uses the
+lowest capability meta ID per user in batches of 500, with object deserialization
+disabled and a 64 KiB/16-level decoding limit. Malformed or non-boolean values
+produce summary warnings. Role names come from the runtime registry; registered
+role keys count as roles even when their stored value is false, matching WordPress.
+
+User analysis skips plugins/themes and uses persisted role definitions; dynamic
+plugin roles or authorization filters may differ. Only active-site capability
+values are decoded. Exact aggregates still require index/group scans and may be
+costly on large installations; queries are not a transactional snapshot. The
+existing process timeout/output limit and trusted-bootstrap limitations apply.
+Unavailable optional usermeta risk counts produce a warning rather than zero.
+No user records or arbitrary usermeta values are loaded into the Node process.
+
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
 server as described below; client-specific integrations have not been validated.
@@ -299,7 +330,7 @@ src/
   index.ts       Small application entry point
   mcp/           MCP server factory, site information tool, and stdio setup
   wordpress/     WP-CLI adapter and site information service
-  migration/     Content type, taxonomy, and custom table analyzers
+  migration/     Content type, taxonomy, custom table, and user analyzers
   utils/         Safe process execution utility
 tests/           Vitest tests
 ```

@@ -19,6 +19,8 @@ import {
   tableMetadataSchema,
   type WpTableMetadata,
 } from './table-metadata.js';
+import { userMetadataPhp } from './user-inspection.js';
+import { userMetadataSchema, type WpUserMetadata } from './user-metadata.js';
 import {
   runProcess,
   type ProcessOptions,
@@ -186,6 +188,15 @@ export class WpCliClient {
       return tableMetadataSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('eval (table metadata)', error);
+    }
+  }
+
+  async getUserMetadata(): Promise<WpUserMetadata> {
+    const { stdout } = await this.#execute(['eval', userMetadataPhp]);
+    try {
+      return userMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (user metadata)', error);
     }
   }
 

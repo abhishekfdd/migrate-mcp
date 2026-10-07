@@ -121,6 +121,52 @@ existing process timeout/output limit and trusted-bootstrap limitations apply.
 Unavailable optional usermeta risk counts produce a warning rather than zero.
 No user records or arbitrary usermeta values are loaded into the Node process.
 
+The internal `MediaAnalyzer.analyze()` returns attachment summaries for the active
+site only, including all stored attachment statuses, deterministic MIME/category
+counts, ID bounds, missing metadata, missing parents, and upload configuration.
+It does not register a media MCP tool. `unattachedAttachments` means
+`post_parent = 0` and is not a broken-media warning; `orphanedAttachments` means a
+nonzero parent ID has no existing post. Missing metadata means absent/empty data,
+not invalid serialized data. Some formats legitimately lack attachment metadata.
+The lowest meta ID supplies the primary attached-file value if duplicates exist.
+
+Uploads come from `wp_upload_dir(null, false)`, which disables directory creation,
+and the year/month option. Plugins/themes load so upload-directory filters apply;
+the trusted-bootstrap limitations above remain. `siteId` and `multisite` identify
+the current WP-CLI site; network sites are never scanned automatically. Custom
+upload directories, URLs, and multisite paths are taken from this runtime rather
+than inferred from `wp-content/uploads`.
+
+Physical checks are opt-in: `analyze({ checkLocalFiles: true })`. They use keyset
+pages of at most 100 attachments, bounded by the initial maximum ID, and inspect
+filesystem metadata only. References exceeding 1,024 bytes are withheld and
+reported as unsafe. Relative references resolve under the configured upload base;
+legacy absolute references are accepted only inside that base. Traversal, stream
+wrappers, and symlinks below the trusted base are rejected. The base itself may
+resolve through a configured symlink. No file contents are read, no files are
+hashed, and no directories are recursively scanned. These checks assume a stable,
+trusted filesystem; they are not a sandbox against concurrent symlink changes.
+
+`checkedLocalFiles` counts definitive present/missing results; `missingLocalFiles`
+counts confirmed absences within that subset. Permissions, unavailable upload
+storage, oversized paths, and unsafe references produce warnings rather than
+false missing-file counts. A wholly inconclusive check omits `missingLocalFiles`.
+Without opt-in, both file counts are omitted with `LOCAL_FILES_NOT_CHECKED`.
+Generated sizes, thumbnails, original-image metadata, and dangling postmeta are
+not inspected. `externalMediaCount` counts explicit HTTP(S), FTP, S3, GS, or
+protocol-relative URI indicators in the primary attached-file value. It does not
+verify remote availability or detect every offload plugin/CDN; a missing local
+file alone is not offload evidence. No remote requests are made.
+
+Summary SQL uses aggregates without loading attachment records into Node.
+Exact counts still require database scans. Optional file checks take one WP-CLI
+bootstrap per page plus filesystem operations per path component, so they can be
+expensive on large sites or slow storage. Memory remains bounded by the page size.
+The process timeout/output limit applies to each command, not the whole analysis.
+Media inspection requires 64-bit PHP. Reads are not a transactional snapshot;
+concurrent edits may cause validation
+failures or a changed-count warning. Same-count edits may be undetectable.
+
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
 server as described below; client-specific integrations have not been validated.

@@ -22,6 +22,16 @@ import {
 import { userMetadataPhp } from './user-inspection.js';
 import { userMetadataSchema, type WpUserMetadata } from './user-metadata.js';
 import {
+  mediaMetadataPhp,
+  attachmentFileReferencesPhp,
+} from './media-inspection.js';
+import {
+  mediaMetadataSchema,
+  attachmentFileReferencesSchema,
+  type WpMediaMetadata,
+  type AttachmentFileReference,
+} from './media-metadata.js';
+import {
   runProcess,
   type ProcessOptions,
   type ProcessResult,
@@ -197,6 +207,36 @@ export class WpCliClient {
       return userMetadataSchema.parse(JSON.parse(stdout));
     } catch (error) {
       throw new WpCliOutputError('eval (user metadata)', error);
+    }
+  }
+
+  async getMediaMetadata(): Promise<WpMediaMetadata> {
+    // Load extensions so upload_dir filters and custom upload configuration apply.
+    const { stdout } = await this.#execute(['eval', mediaMetadataPhp], true);
+    try {
+      return mediaMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (media metadata)', error);
+    }
+  }
+
+  async getAttachmentFileReferences(
+    afterId: number,
+    throughId: number,
+  ): Promise<AttachmentFileReference[]> {
+    const php = attachmentFileReferencesPhp(afterId, throughId);
+    const { stdout } = await this.#execute(['eval', php], true);
+    try {
+      const rows = attachmentFileReferencesSchema.parse(JSON.parse(stdout));
+      let previous = afterId;
+      for (const row of rows) {
+        if (row.id <= previous || row.id > throughId)
+          throw new Error('Invalid attachment page ordering');
+        previous = row.id;
+      }
+      return rows;
+    } catch (error) {
+      throw new WpCliOutputError('eval (attachment file references)', error);
     }
   }
 

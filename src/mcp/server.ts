@@ -20,6 +20,7 @@ import {
   registerCustomTablesTool,
   type CustomTableAnalyzerFactory,
 } from './custom-tables-tool.js';
+import { registerUsersTool, type UserAnalyzerFactory } from './users-tool.js';
 
 export function createServer(
   createSiteInfoService?: SiteInfoServiceFactory,
@@ -27,6 +28,7 @@ export function createServer(
   createContentTypeAnalyzer?: ContentTypeAnalyzerFactory,
   createTaxonomyAnalyzer?: TaxonomyAnalyzerFactory,
   createCustomTableAnalyzer?: CustomTableAnalyzerFactory,
+  createUserAnalyzer?: UserAnalyzerFactory,
 ): McpServer {
   // This relative URL works from both src/mcp/ and dist/mcp/.
   const { version } = JSON.parse(
@@ -40,6 +42,7 @@ export function createServer(
   registerContentTypesTool(server, createContentTypeAnalyzer);
   registerTaxonomiesTool(server, createTaxonomyAnalyzer);
   registerCustomTablesTool(server, createCustomTableAnalyzer);
+  registerUsersTool(server, createUserAnalyzer);
 
   return server;
 }

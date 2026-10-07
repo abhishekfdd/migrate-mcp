@@ -5,9 +5,9 @@ agents analyze, plan, and validate complex WordPress migrations.
 
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
-`migration_list_taxonomies`, and `migration_list_custom_tables`, which read
-metadata through the existing services and WP-CLI adapter. The temporary `ping`
-tool has been removed.
+`migration_list_taxonomies`, `migration_list_custom_tables`, and
+`migration_analyze_users`, which read metadata through the existing services and
+WP-CLI adapter. The temporary `ping` tool has been removed.
 Migration execution is not implemented.
 
 ## Scope
@@ -98,7 +98,8 @@ roles. On multisite, `siteUserCount` and per-site memberships count distinct
 existing users with stored site capability keys, including empty/malformed values;
 they are membership evidence, not effective access checks or super-admin counts.
 Network users with no active-site membership are excluded from its role summary.
-Single-site role summaries include every user. No user MCP tool is registered yet.
+Single-site role summaries include every user. The `migration_analyze_users` tool
+exposes these results.
 
 Duplicate email/login counts report extra accounts beyond the first in each
 equal-value group, including blank values, using database collation semantics.
@@ -292,6 +293,29 @@ verified relationships; base-prefixed multisite tables can retain ambiguous
 `network-or-main-site` scope. The tool adds no filtering and exposes no SQL,
 commands, or credentials. Existing analyzer limitations above apply; errors use
 the same `isError: true` convention.
+
+## Call the user analysis tool
+
+Use the same server configuration and WordPress prerequisites. To analyze user
+statistics, role distribution, multisite memberships, duplicate-account
+indicators, and usermeta risks, send this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_analyze_users",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Input uses the same strict, absolute-path validation as the other tools. The
+analysis is returned directly in `structuredContent` plus matching JSON text,
+preserving numeric counts/IDs, role ordering, structured memberships, and warnings.
+It includes `roleSiteId`, `siteUserCount`, and `administratorCount` from the domain
+model; role summaries apply to the active site while totals cover the shared
+users table. Optional fields remain absent when unavailable. User records, auth
+secrets, raw capabilities, and duplicate email/login values are excluded.
+Existing analyzer limitations above apply. Errors use `isError: true` with
+sanitized guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
 
 ## Development
 

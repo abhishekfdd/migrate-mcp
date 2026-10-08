@@ -465,6 +465,53 @@ No raw matching rows, content, option/meta values, or SQL are returned.
 Existing analyzer scope and limits above apply. Errors use `isError: true` with
 sanitized guidance; malformed analyzer results return `INVALID_ANALYZER_RESPONSE`.
 
+## Source/target comparison (domain service)
+
+`SiteComparisonService.compare({ sourcePath, targetPath })` accepts two absolute
+WordPress installation paths and returns a read-only comparison. It is not yet
+exposed as an MCP tool. It reuses the site/database services and content type,
+taxonomy, custom table, user, media, and URL analyzers once per side. Tests inject
+these services; no WordPress installation is required.
+
+The result contains source/target identities, runtime comparisons, registration
+sets and configuration differences, table matches, user/media/reference summaries,
+and sorted findings with summary counts. Unavailable optional metadata is marked
+`unknown`, not replaced with zero or treated as a mismatch. Post/term/table count
+differences describe volume. Supports and associated post types are compared as
+sets; capability-type arrays retain their singular/plural order.
+
+Findings use stable codes and categories. Single-site/multisite mode mismatch is
+`blocking` for direct migration; missing source registrations, missing active-site
+custom tables, and user ID-range overlap are `high` risks. Configuration/version
+differences and analyzer warnings require review. `info` and `warning` findings
+appear in `warnings`; `high` and `blocking` findings appear in `conflicts`.
+`warningCount` includes informational findings. Equal versions do not certify
+compatibility, and overlapping ranges do not prove individual user ID collisions.
+
+Custom tables match active-site logical names across prefixes. Network/main-site
+logical matches and other exact-name/scope matches retain ownership warnings;
+ambiguous matches are not paired. Other blogs are not equated by blog ID or table
+suffix. Plugin names remain hints, and schemas are not compared. Row counts and
+sizes remain metadata estimates. User totals/ranges cover shared network users;
+roles describe the active site. Membership summaries compare characteristics,
+not site identities or individual accounts.
+
+One source/target service pair runs at a time (two service calls; existing services
+may run multiple WP-CLI calls internally). Each pair settles before proceeding.
+A failed service rejects the whole comparison with its original error; if both
+sides fail, the source error wins. No partial result is returned. Collection is
+not an atomic snapshot: run against stable installations. Existing services may
+repeat their underlying metadata reads; the comparison adds no discovery commands.
+
+Media uses the analyzer's default summary mode, without physical file checks;
+missing-local-file counts may therefore be unknown. URL results retain scan-limit
+counters and warnings. Target hosts marked `not-observed` were absent from the
+bounded scan, not proven absent from the database. Source-only observed media
+hosts are dependency hints, not proof of exclusive CDN ownership; filesystem
+indicators do not prove source-path ownership. Database inventory can include
+other installations, while most analyzers cover only the active site. No account
+matching, file comparison, replacements, mappings, plans, or execution are performed.
+
 ## Development
 
 Requirements: Node.js 22.13+ (22.x) or 24+ and npm. WordPress and WP-CLI are not needed

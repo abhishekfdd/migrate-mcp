@@ -542,6 +542,50 @@ The engine's errors do not reliably identify the failing side; check both
 installations using the individual analysis tools when needed. Malformed results
 return `INVALID_COMPARISON_RESPONSE`. Existing comparison limitations above apply.
 
+## Migration planning (domain service)
+
+`MigrationPlanner.generatePlan({ comparison })` converts a complete
+`SiteComparison` into a deterministic `MigrationPlan`. It is a pure, synchronous
+domain operation: it does not rerun analysis, access WordPress, or perform I/O.
+No planning MCP tool is registered yet.
+
+The result explicitly reports `kind: "migration-plan"` and
+`executionPerformed: false`, with issues, ordered phases, steps, validation
+requirements, unresolved decisions, and manual-review step IDs. It contains no
+executable commands, SQL, calculated ID mappings, or completed steps.
+`automated` describes potential future automation only. Every step still requires
+confirmation before any separately implemented execution workflow.
+
+Readiness is `blocked` when comparison findings include blocking severity,
+`ready_with_warnings` when significant findings, unresolved decisions, or
+medium/high-risk manual reviews remain, and `ready` otherwise. It describes the
+supplied evidence, not authorization or a guarantee that migration is safe.
+Routine preflight confirmation alone does not reduce readiness. Informational
+issues are preserved and included in `warningCount`, but only reduce readiness
+when they imply a concrete unresolved action or decision. Counts are computed
+from the plan rather than copied from the comparison summary.
+
+Known findings map to explicit preparation actions for topology, runtimes,
+registrations, custom tables, identities, uploads, and references. Related actions
+are grouped with sorted affected keys/names. Step risk is separate from issue
+severity: missing taxonomy preparation is medium risk; ID-collision strategy is
+high risk. Unknown significant findings and analyzer limitations remain manual
+review work. All decisions stay unresolved, including source-only data scope,
+existing target-data policy, external media hosting, and reference retention.
+
+Preflight and validation are always present. Other phases appear only for
+relevant findings or source data. Phases conservatively depend on all generated
+earlier phases; validation depends on all applicable phases. Checks cover only
+relevant registrations, content/term counts, user identity handling, reviewed
+custom-table schemas/data, media availability, and approved URL/path policies.
+Counts must account for exclusions and retained target data; table statistics
+remain estimates, and intentional source/development references may remain.
+
+The planner inherits the comparison's scope, unknown metadata, scan limits, and
+non-atomic collection. It cannot infer plugin ownership, schemas, account matches,
+or storage permissions, and it does not verify backups or execute validation.
+Plans require human review and fresh evidence before a future execution phase.
+
 ## Development
 
 Requirements: Node.js 22.13+ (22.x) or 24+ and npm. WordPress and WP-CLI are not needed

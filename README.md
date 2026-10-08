@@ -169,6 +169,55 @@ Media inspection requires 64-bit PHP. Reads are not a transactional snapshot;
 concurrent edits may cause validation
 failures or a changed-count warning. Same-count edits may be undetectable.
 
+The internal `UrlReferenceAnalyzer.analyze()` returns URL/reference summaries;
+no URL MCP tool is registered yet. It scans the active site's `posts.post_content`,
+`posts.post_excerpt`, `postmeta.meta_value`, `options.option_value`,
+`termmeta.meta_value`, `comments.comment_content`, and `commentmeta.meta_value`
+through fixed WP-CLI PHP and read-only SQL. Table names come from `$wpdb`, including
+multisite prefixes. It does not scan other network sites, usermeta, GUIDs, comment
+author identities, network options, or custom tables.
+
+`totalReferences` counts HTTP(S) and protocol-relative URL occurrences, including
+repeated URLs, not matching rows or unique URLs. Hosts are lowercased, stripped of
+trailing dots, and grouped independently of ports and protocols. HTTP, HTTPS, and
+protocol-relative counts are separate. `sourceUrlReferences` matches configured
+site/home hostnames exactly; everything else is external, without implying a
+problem. `siteUrlReferences`, `homeUrlReferences`, and `uploadUrlReferences` match
+host, normalized port, and a path boundary, ignoring scheme; these counts may
+overlap. Observed `www` variants are reported as `alternateSourceHosts` hints,
+not verified ownership. Host maps, location summaries, and warnings are sorted.
+
+Serialized-looking values are detected with `is_serialized()` and scanned as
+text, never unserialized or rewritten. Valid JSON is decoded to arrays/scalars
+with a depth limit of 32; string values are scanned once, including escaped URLs.
+Malformed JSON falls back to text scanning. Serialized/JSON counters count URL
+occurrences within those values. Development indicators include loopback URLs,
+`.local`, `.test`, `.localhost`, and delimited dev/staging hostname labels.
+External media hints use the configured upload URL, a small CDN hostname list,
+`cdn` labels, and common media extensions. Filesystem hints recognize common
+absolute Unix roots and Windows drive paths, excluding paths inside URL tokens.
+Only counts are returned; files, hosts, and remote media are never accessed.
+
+Raw rows stay inside PHP. Secret-bearing option/meta keys and transient entries
+are excluded in SQL; sensitive JSON fields are skipped. No post content, option
+values, discovered full URLs, or filesystem paths are returned. Configured URLs
+omit userinfo, query strings, and fragments. Key-name filtering is conservative
+and may exclude useful data; it is not an exhaustive classification of secrets.
+Returned hostnames and configured URL paths remain intentional inventory data.
+
+Each fixed location uses 100-value primary-key pages bounded by its initial
+maximum ID. Values over 64 KiB, NUL-containing values, and invalid UTF-8 are skipped
+with counters/warnings. Host maps retain at most 1,000 encountered hosts; omitted
+host occurrences remain in totals and `unreportedHostReferences`. Memory is
+bounded; one WordPress bootstrap handles the scan, but reading large core tables
+can still be expensive and the existing process timeout/output limit applies.
+Reads are not a consistent snapshot. Only ASCII/punycode DNS names and IP literals
+are recognized; bare hostnames, encoded/compressed content, deeply nested JSON,
+and uncommon filesystem paths may be missed. Counts are observations within this
+scope, not a replacement plan or a complete reference audit. Plugins/themes load
+for effective upload configuration, with directory creation disabled; existing
+trusted-bootstrap limitations apply. A 64-bit PHP runtime is required.
+
 The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
 VS Code-compatible clients. Local clients that support stdio can launch the
 server as described below; client-specific integrations have not been validated.
@@ -421,6 +470,12 @@ npm run format:check
 The project uses native ES modules and strict TypeScript. Tests and tooling
 configuration are excluded from the build. The package is marked private while
 the initial implementation is under development.
+
+URL inspection also has PHP runtime tests with mocked WordPress functions and
+database responses. They run when `php` is on PATH and are skipped otherwise;
+the adapter and domain tests always run. No WordPress installation, database,
+or internet access is needed. Install PHP locally to exercise the extraction
+code itself as well as its TypeScript boundaries.
 
 ## Structure
 

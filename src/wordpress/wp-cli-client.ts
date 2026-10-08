@@ -31,6 +31,11 @@ import {
   type WpMediaMetadata,
   type AttachmentFileReference,
 } from './media-metadata.js';
+import { urlReferenceMetadataPhp } from './url-reference-inspection.js';
+import {
+  urlReferenceMetadataSchema,
+  type WpUrlReferenceMetadata,
+} from './url-reference-metadata.js';
 import {
   runProcess,
   type ProcessOptions,
@@ -237,6 +242,19 @@ export class WpCliClient {
       return rows;
     } catch (error) {
       throw new WpCliOutputError('eval (attachment file references)', error);
+    }
+  }
+
+  async getUrlReferenceMetadata(): Promise<WpUrlReferenceMetadata> {
+    // Load upload URL filters; only fixed core textual locations are inspected.
+    const { stdout } = await this.#execute(
+      ['eval', urlReferenceMetadataPhp],
+      true,
+    );
+    try {
+      return urlReferenceMetadataSchema.parse(JSON.parse(stdout));
+    } catch (error) {
+      throw new WpCliOutputError('eval (URL reference metadata)', error);
     }
   }
 

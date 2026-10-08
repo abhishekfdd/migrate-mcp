@@ -13,6 +13,7 @@ import type { CustomTableAnalyzerFactory } from './custom-tables-tool.js';
 import type { UserAnalyzerFactory } from './users-tool.js';
 import type { MediaAnalyzerFactory } from './media-tool.js';
 import type { UrlReferenceAnalyzerFactory } from './urls-tool.js';
+import type { SiteComparisonServiceFactory } from './compare-sites-tool.js';
 
 export function startStdioServer(
   transport: Transport = new StdioServerTransport(),
@@ -24,6 +25,7 @@ export function startStdioServer(
   createUserAnalyzer?: UserAnalyzerFactory,
   createMediaAnalyzer?: MediaAnalyzerFactory,
   createUrlReferenceAnalyzer?: UrlReferenceAnalyzerFactory,
+  createSiteComparisonService?: SiteComparisonServiceFactory,
 ): StdioServerHandle {
   return serveStdio(
     () =>
@@ -36,6 +38,7 @@ export function startStdioServer(
         createUserAnalyzer,
         createMediaAnalyzer,
         createUrlReferenceAnalyzer,
+        createSiteComparisonService,
       ),
     {
       transport,

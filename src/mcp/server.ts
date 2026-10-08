@@ -26,6 +26,10 @@ import {
   registerUrlsTool,
   type UrlReferenceAnalyzerFactory,
 } from './urls-tool.js';
+import {
+  registerCompareSitesTool,
+  type SiteComparisonServiceFactory,
+} from './compare-sites-tool.js';
 
 export function createServer(
   createSiteInfoService?: SiteInfoServiceFactory,
@@ -36,6 +40,7 @@ export function createServer(
   createUserAnalyzer?: UserAnalyzerFactory,
   createMediaAnalyzer?: MediaAnalyzerFactory,
   createUrlReferenceAnalyzer?: UrlReferenceAnalyzerFactory,
+  createSiteComparisonService?: SiteComparisonServiceFactory,
 ): McpServer {
   // This relative URL works from both src/mcp/ and dist/mcp/.
   const { version } = JSON.parse(
@@ -52,6 +57,7 @@ export function createServer(
   registerUsersTool(server, createUserAnalyzer);
   registerMediaTool(server, createMediaAnalyzer);
   registerUrlsTool(server, createUrlReferenceAnalyzer);
+  registerCompareSitesTool(server, createSiteComparisonService);
 
   return server;
 }

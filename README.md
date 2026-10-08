@@ -6,7 +6,8 @@ agents analyze, plan, and validate complex WordPress migrations.
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
 `migration_list_taxonomies`, `migration_list_custom_tables`,
-`migration_analyze_users`, `migration_analyze_media`, and `migration_analyze_urls`, which read metadata
+`migration_analyze_users`, `migration_analyze_media`, `migration_analyze_urls`, and
+`migration_compare_sites`, which read metadata
 through the existing services and WP-CLI adapter. The temporary `ping` tool has
 been removed.
 Migration execution is not implemented.
@@ -468,8 +469,8 @@ sanitized guidance; malformed analyzer results return `INVALID_ANALYZER_RESPONSE
 ## Source/target comparison (domain service)
 
 `SiteComparisonService.compare({ sourcePath, targetPath })` accepts two absolute
-WordPress installation paths and returns a read-only comparison. It is not yet
-exposed as an MCP tool. It reuses the site/database services and content type,
+WordPress installation paths and returns a read-only comparison, exposed through
+`migration_compare_sites`. It reuses the site/database services and content type,
 taxonomy, custom table, user, media, and URL analyzers once per side. Tests inject
 these services; no WordPress installation is required.
 
@@ -511,6 +512,35 @@ hosts are dependency hints, not proof of exclusive CDN ownership; filesystem
 indicators do not prove source-path ownership. Database inventory can include
 other installations, while most analyzers cover only the active site. No account
 matching, file comparison, replacements, mappings, plans, or execution are performed.
+
+## Call the site comparison tool
+
+To compare two trusted local WordPress installations for configuration differences,
+custom tables, user-ID risks, media issues, and environment-specific references,
+send this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_compare_sites",
+  "arguments": {
+    "sourcePath": "/absolute/path/to/source-wordpress",
+    "targetPath": "/absolute/path/to/target-wordpress"
+  }
+}
+```
+
+Both paths are required, non-blank absolute paths; additional properties and NUL
+bytes are rejected. Paths that normalize to the same absolute path return
+`SAME_INSTALLATION` before comparison. This is a lexical check: symlinks, filesystem
+aliases, and separate directories sharing a database are not identified.
+
+The existing domain response is returned in `structuredContent` and matching JSON
+text, preserving arrays, optional values, severity/code fields, and summary counts.
+The MCP layer does not sort, reclassify findings, or generate a plan. Any service
+failure returns `isError: true` with sanitized guidance and no partial comparison.
+The engine's errors do not reliably identify the failing side; check both
+installations using the individual analysis tools when needed. Malformed results
+return `INVALID_COMPARISON_RESPONSE`. Existing comparison limitations above apply.
 
 ## Development
 

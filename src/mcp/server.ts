@@ -22,6 +22,10 @@ import {
 } from './custom-tables-tool.js';
 import { registerUsersTool, type UserAnalyzerFactory } from './users-tool.js';
 import { registerMediaTool, type MediaAnalyzerFactory } from './media-tool.js';
+import {
+  registerUrlsTool,
+  type UrlReferenceAnalyzerFactory,
+} from './urls-tool.js';
 
 export function createServer(
   createSiteInfoService?: SiteInfoServiceFactory,
@@ -31,6 +35,7 @@ export function createServer(
   createCustomTableAnalyzer?: CustomTableAnalyzerFactory,
   createUserAnalyzer?: UserAnalyzerFactory,
   createMediaAnalyzer?: MediaAnalyzerFactory,
+  createUrlReferenceAnalyzer?: UrlReferenceAnalyzerFactory,
 ): McpServer {
   // This relative URL works from both src/mcp/ and dist/mcp/.
   const { version } = JSON.parse(
@@ -46,6 +51,7 @@ export function createServer(
   registerCustomTablesTool(server, createCustomTableAnalyzer);
   registerUsersTool(server, createUserAnalyzer);
   registerMediaTool(server, createMediaAnalyzer);
+  registerUrlsTool(server, createUrlReferenceAnalyzer);
 
   return server;
 }

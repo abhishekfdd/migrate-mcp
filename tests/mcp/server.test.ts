@@ -53,7 +53,7 @@ describe('MCP server', () => {
     });
   });
 
-  it('exposes the site, database, content type, taxonomy, custom table, user, and media tools', async () => {
+  it('exposes the site, database, content type, taxonomy, custom table, user, media, and URL tools', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name)).toEqual([
       'migration_site_info',
@@ -63,6 +63,7 @@ describe('MCP server', () => {
       'migration_list_custom_tables',
       'migration_analyze_users',
       'migration_analyze_media',
+      'migration_analyze_urls',
     ]);
     expect(tools[0]).toMatchObject({
       name: 'migration_site_info',

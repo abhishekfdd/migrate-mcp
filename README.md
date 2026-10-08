@@ -6,7 +6,7 @@ agents analyze, plan, and validate complex WordPress migrations.
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
 `migration_list_taxonomies`, `migration_list_custom_tables`,
-`migration_analyze_users`, and `migration_analyze_media`, which read metadata
+`migration_analyze_users`, `migration_analyze_media`, and `migration_analyze_urls`, which read metadata
 through the existing services and WP-CLI adapter. The temporary `ping` tool has
 been removed.
 Migration execution is not implemented.
@@ -169,8 +169,8 @@ Media inspection requires 64-bit PHP. Reads are not a transactional snapshot;
 concurrent edits may cause validation
 failures or a changed-count warning. Same-count edits may be undetectable.
 
-The internal `UrlReferenceAnalyzer.analyze()` returns URL/reference summaries;
-no URL MCP tool is registered yet. It scans the active site's `posts.post_content`,
+The internal `UrlReferenceAnalyzer.analyze()` returns URL/reference summaries,
+exposed by `migration_analyze_urls`. It scans the active site's `posts.post_content`,
 `posts.post_excerpt`, `postmeta.meta_value`, `options.option_value`,
 `termmeta.meta_value`, `comments.comment_content`, and `commentmeta.meta_value`
 through fixed WP-CLI PHP and read-only SQL. Table names come from `$wpdb`, including
@@ -440,6 +440,30 @@ not enabled: `missingLocalFiles` and `checkedLocalFiles` are omitted, with a
 `LOCAL_FILES_NOT_CHECKED` warning. It does not accept a `checkLocalFiles` option.
 Other analyzer limitations above apply. Failures use `isError: true` and sanitized
 guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
+
+## Call the URL/reference analysis tool
+
+Use the same server configuration and WordPress prerequisites. To analyze URL
+references, source-domain dependencies, external hosts, development URLs,
+serialized/JSON references, filesystem hints, and their database locations, send
+this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_analyze_urls",
+  "arguments": { "path": "/absolute/path/to/wordpress" }
+}
+```
+
+Only `path` is accepted, using the existing strict absolute-path validation.
+The complete domain summary is returned directly in `structuredContent` plus
+matching JSON text, preserving numeric counts, host maps, location arrays,
+warnings, optional configuration URLs, and analyzer ordering. Counts represent
+URL occurrences, not unique URLs or matching rows. `siteId` and `multisite`
+identify the active site, and scan-limit counters/warnings remain visible.
+No raw matching rows, content, option/meta values, or SQL are returned.
+Existing analyzer scope and limits above apply. Errors use `isError: true` with
+sanitized guidance; malformed analyzer results return `INVALID_ANALYZER_RESPONSE`.
 
 ## Development
 

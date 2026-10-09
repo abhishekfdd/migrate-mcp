@@ -52,7 +52,7 @@ export function createServer(
     readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
   ) as { version: string };
 
-  const server = new McpServer({ name: 'wp-migrate-mcp', version });
+  const server = new McpServer({ name: 'migrate-mcp', version });
 
   registerSiteInfoTool(server, createSiteInfoService);
   registerDatabaseInfoTool(server, createDatabaseInfoService);

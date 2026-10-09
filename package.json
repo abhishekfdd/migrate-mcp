@@ -1,7 +1,7 @@
 {
-  "name": "wp-migrate-mcp",
+  "name": "migrate-mcp",
   "version": "0.1.0",
-  "description": "Read-only WordPress migration analysis, planning, and validation for AI coding agents.",
+  "description": "Read-only MCP server for analyzing, comparing, and planning WordPress migrations.",
   "private": true,
   "type": "module",
   "license": "MIT",

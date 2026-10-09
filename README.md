@@ -1,20 +1,58 @@
-# wp-migrate-mcp
+# Migrate MCP
 
-An open-source Model Context Protocol (MCP) server being built to help AI coding
-agents analyze, plan, and validate complex WordPress migrations.
+Migrate MCP is a read-only Model Context Protocol (MCP) server for analyzing,
+comparing, and planning WordPress migrations.
 
-**Status: early development.** The server runs over stdio and exposes
-`migration_site_info`, `migration_database_info`, `migration_list_content_types`,
-`migration_list_taxonomies`, `migration_list_custom_tables`,
-`migration_analyze_users`, `migration_analyze_media`, `migration_analyze_urls`,
-`migration_compare_sites`, and `migration_generate_plan`, which use read-only
-metadata through the existing services and WP-CLI adapter. The temporary `ping` tool has
-been removed.
-Migration execution is not implemented.
+It gives AI coding agents structured tools for inspecting WordPress installations,
+identifying migration risks, comparing source and target environments, and
+generating migration plans without modifying either site.
+
+## Why Migrate MCP?
+
+Existing migration tooling often focuses on moving data. Migrate MCP focuses on
+analysis, conflict detection, planning, and validation preparation. It helps
+agents and developers understand migration requirements before choosing how to
+execute a migration.
+
+## Safety
+
+Migrate MCP is currently **READ-ONLY**.
+
+It can inspect and analyze WordPress installations but does not:
+
+- modify database records
+- modify files
+- migrate content
+- perform search-replace
+- remap IDs
+- copy media
+- execute migration plans
+
+## Status
+
+Migrate MCP is an independent open-source project in **early-stage / pre-release**
+development. Tool interfaces and planning models may change. Migration execution
+and validation execution are not implemented.
+
+## Implemented MCP tools
+
+The server runs over stdio and exposes these tools through the existing services
+and WP-CLI adapter:
+
+- `migration_site_info`
+- `migration_database_info`
+- `migration_list_content_types`
+- `migration_list_taxonomies`
+- `migration_list_custom_tables`
+- `migration_analyze_users`
+- `migration_analyze_media`
+- `migration_analyze_urls`
+- `migration_compare_sites`
+- `migration_generate_plan`
 
 ## Scope
 
-The initial implementation will be strictly **read-only**: it must not modify
+The current implementation is strictly **read-only**: it must not modify
 WordPress databases, files, users, posts, media, or configuration. Migration
 execution is outside the initial scope.
 
@@ -242,9 +280,9 @@ using an `mcpServers` configuration can use:
 ```json
 {
   "mcpServers": {
-    "wp-migrate-mcp": {
+    "migrate-mcp": {
       "command": "node",
-      "args": ["/absolute/path/to/wp-migrate-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/migrate-mcp/dist/index.js"]
     }
   }
 }
@@ -254,7 +292,7 @@ Replace the example path with your checkout path. The client must be able to fin
 a supported Node.js version. Launching Node directly keeps npm's script banners
 out of the protocol stream. Rebuild after changing TypeScript source files.
 
-The server identifies itself as `wp-migrate-mcp`, using the version from
+The server identifies itself as `migrate-mcp`, using the version from
 `package.json`. To call `migration_site_info`, the server host needs PHP, `wp` on
 its process `PATH`, and access to a trusted WordPress installation and its
 database. The configured server command above is unchanged; the WordPress path
@@ -664,6 +702,13 @@ tests/           Vitest tests
 ```
 
 Migration execution has not been implemented.
+
+## Trademark
+
+WordPress is a registered trademark of the WordPress Foundation.
+
+Migrate MCP is an independent open-source project and is not affiliated with,
+endorsed by, or sponsored by the WordPress Foundation or the WordPress project.
 
 ## License
 

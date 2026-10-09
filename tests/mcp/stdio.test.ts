@@ -52,7 +52,7 @@ it('serves initialization and site info as JSON-RPC over stdio streams', async (
           jsonrpc: '2.0',
           id: 1,
           result: expect.objectContaining({
-            serverInfo: expect.objectContaining({ name: 'wp-migrate-mcp' }),
+            serverInfo: expect.objectContaining({ name: 'migrate-mcp' }),
           }),
         }),
       ]);

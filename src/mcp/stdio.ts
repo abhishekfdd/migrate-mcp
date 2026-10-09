@@ -47,7 +47,7 @@ export function startStdioServer(
       transport,
       onerror: (error) => {
         // stdout is reserved for MCP protocol messages.
-        process.stderr.write(`wp-migrate-mcp: ${error.message}\n`);
+        process.stderr.write(`migrate-mcp: ${error.message}\n`);
       },
     },
   );

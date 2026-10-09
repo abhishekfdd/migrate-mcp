@@ -48,7 +48,7 @@ describe('MCP server', () => {
       readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
     ) as { version: string };
     expect(client.getServerVersion()).toMatchObject({
-      name: 'wp-migrate-mcp',
+      name: 'migrate-mcp',
       version,
     });
   });

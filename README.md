@@ -1,269 +1,64 @@
 # Migrate MCP
 
-Migrate MCP is a read-only Model Context Protocol (MCP) server for analyzing,
-comparing, and planning WordPress migrations.
+A read-only MCP server for analyzing, comparing, and planning WordPress migrations.
 
-It gives AI coding agents structured tools for inspecting WordPress installations,
-identifying migration risks, comparing source and target environments, and
-generating migration plans without modifying either site.
+Migrate MCP gives AI coding agents structured migration-analysis tools through the
+Model Context Protocol (MCP). It helps you inspect installations, identify risks,
+compare source and target sites, and prepare a migration plan without modifying
+either WordPress installation.
+
+**Status:** Early-stage / pre-release. The current release focuses on read-only
+migration analysis and planning; tool interfaces and planning models may change.
 
 ## Why Migrate MCP?
 
-Existing migration tooling often focuses on moving data. Migrate MCP focuses on
-analysis, conflict detection, planning, and validation preparation. It helps
-agents and developers understand migration requirements before choosing how to
-execute a migration.
+Traditional migration tools are generally good at moving data. For complex
+WordPress migrations, the difficult work often comes before and after that move:
 
-## Safety
+- Understanding what exists on each site.
+- Identifying differences between source and target.
+- Finding conflicts and migration risks.
+- Deciding what needs manual review.
+- Defining how to validate the migration.
 
-Migrate MCP is currently **READ-ONLY**.
+Migrate MCP focuses on these analysis and planning problems so developers and
+agents can make informed decisions before choosing how to execute a migration.
 
-It can inspect and analyze WordPress installations but does not:
+## Key capabilities
 
-- modify database records
-- modify files
-- migrate content
-- perform search-replace
-- remap IDs
-- copy media
-- execute migration plans
+- **Site/environment inspection:** WordPress, PHP, and WP-CLI versions, URLs, and multisite status.
+- **Database inspection:** Table inventory, prefixes, charset/collation, and estimated size.
+- **Content type discovery:** Registered post types, configuration, and stored post counts.
+- **Taxonomy discovery:** Registered taxonomies, associated types, and stored term counts.
+- **Custom table analysis:** Non-core tables, size estimates, scope, and ownership/reference hints.
+- **User migration-risk analysis:** User totals, ID ranges, roles, memberships, and duplicate indicators.
+- **Media analysis:** Attachment summaries, metadata/parent anomalies, and upload configuration.
+- **URL/environment-reference analysis:** Source-host dependencies, external hosts, and development/path indicators.
+- **Source/target comparison:** Configuration differences and categorized migration findings.
+- **Migration planning:** Ordered phases, blockers, unresolved decisions, and validation requirements.
 
-## Status
+## Quick start
 
-Migrate MCP is an independent open-source project in **early-stage / pre-release**
-development. Tool interfaces and planning models may change. Migration execution
-and validation execution are not implemented.
+### Requirements
 
-## Implemented MCP tools
+- Node.js 22.13+ within 22.x, or Node.js 24+, and npm.
+- Git to clone the repository.
+- An MCP client that supports local stdio servers.
+- To analyze sites: PHP, WP-CLI (`wp`) on the server process's `PATH`, and access
+  to trusted WordPress installations and their databases. Media and URL analysis
+  require 64-bit PHP.
 
-The server runs over stdio and exposes these tools through the existing services
-and WP-CLI adapter:
+WordPress and WP-CLI are not needed just to start the server, discover tools, or
+run the mocked tests. Client-specific integrations have not been validated.
 
-- `migration_site_info`
-- `migration_database_info`
-- `migration_list_content_types`
-- `migration_list_taxonomies`
-- `migration_list_custom_tables`
-- `migration_analyze_users`
-- `migration_analyze_media`
-- `migration_analyze_urls`
-- `migration_compare_sites`
-- `migration_generate_plan`
+### Clone, install, and run
 
-## Scope
-
-The current implementation is strictly **read-only**: it must not modify
-WordPress databases, files, users, posts, media, or configuration. Migration
-execution is outside the initial scope.
-
-The planned architecture separates MCP protocol handling from domain services
-and puts WP-CLI behind an adapter using safe process execution without arbitrary
-shell commands. Services will return structured, JSON-friendly results and have
-focused tests. MCP infrastructure uses the official
-[TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) v2 server
-package. The internal `WpCliClient` uses the process runner with fixed metadata
-commands, a WordPress path, and an optional trusted WP binary path (default `wp`).
-Its tests inject a mock runner and do not require WordPress or WP-CLI.
-
-`SiteInfoService.getSiteInfo()` returns the WordPress version, multisite status,
-site URL, home URL, active site's table prefix, PHP version used by WP-CLI, and
-WP-CLI version. The PHP version may differ from the web server's runtime. On
-multisite, the prefix is for the site selected by WP-CLI and may include a blog
-ID. URLs retain WordPress's effective option values without normalization.
-
-The adapter reads runtime metadata using fixed internal PHP through `wp eval`;
-it accepts no caller-supplied PHP or SQL. These reads bootstrap WordPress with
-plugins, themes, and CLI packages skipped for site and database metadata. Trusted
-installation code, including must-use plugins and drop-ins, can still run during
-bootstrap; this is not an
-isolation boundary for untrusted WordPress code. No mutation commands or direct
-MySQL access are implemented.
-
-The internal `ContentTypeAnalyzer.analyze()` inspects all registered post types,
-including internal types, through fixed WP-CLI runtime PHP. This inspection loads
-plugins and the active theme so their custom registrations are visible; CLI
-packages remain skipped. The `migration_list_content_types` tool exposes the
-results, sorted by name, with sorted support names and numeric counts of all
-stored rows for each registered type, across all statuses (including drafts,
-trash, and auto-drafts), for the active site only. Unregistered types with
-leftover rows are not included.
-
-Metadata reflects the WP-CLI runtime context: registrations conditional on web,
-admin, or REST requests may differ, and WP-CLI configuration may skip extensions.
-Loading trusted extension code can have its own bootstrap side effects. REST base
-and rewrite slug are reported when present on the runtime object; an implicit
-REST base is not inferred. `hasArchive` preserves a custom archive slug string.
-WordPress may normalize capability types to a singular string, so the original
-plural registration cannot always be recovered. Labels follow the runtime locale.
-
-The internal `TaxonomyAnalyzer.analyze()` uses the same runtime inspection
-approach, including loading plugins and the active theme. It returns all
-registered taxonomies (including internal ones), their runtime built-in status,
-metadata, sorted object types, and numeric term counts, sorted by taxonomy name.
-Counts cover stored rows in the active site's term taxonomy table, including
-unused terms; they do not count post assignments or validate referential
-integrity. Unregistered taxonomies with leftover rows are not included. Optional
-labels, descriptions, REST bases, and rewrite slugs are reported when available;
-implicit REST bases are not inferred. The runtime and bootstrap limitations
-above also apply. The `migration_list_taxonomies` tool exposes these results.
-
-The internal `CustomTableAnalyzer.analyze()` lists visible base tables that are
-not in the installed WordPress core table mapping. It shares core discovery with
-database information: core class defaults are mapped through `$wpdb` for each
-registered blog, including network tables and custom user-table overrides.
-Views are excluded. Legacy tables, deleted-blog tables, and tables belonging to
-other installations may appear in the custom list; custom does not prove plugin
-ownership. The `migration_list_custom_tables` tool exposes these results.
-
-Table statistics and common reference-column names come from `information_schema`,
-without reading table contents or performing exact row counts. Row counts and
-data/index sizes are metadata estimates; unavailable statistics are omitted.
-Owner names and `referenceHints` are naming hints, not verified ownership or
-foreign keys. Results are sorted by full table name. `usesWordPressPrefix` tests
-the active site's prefix; `logicalName` removes a matching registered site prefix
-or the network base prefix. Known numbered subsite prefixes yield `siteId` and
-`siteSpecific: true`. Base-prefixed multisite custom tables have ambiguous
-`network-or-main-site` scope; unknown numeric prefixes remain `unknown`.
-An empty prefix matches every name but does not establish site scope. Metadata
-work scales with table/site counts, not data volume; the existing process timeout
-and 1 MiB output limit still apply to very large inventories. The database
-inspection bootstrap limitations above also apply.
-
-The internal `UserAnalyzer.analyze()` returns summary-only user information. Total
-users and minimum/maximum IDs cover the shared users table once, even on multisite;
-`maxUserId` is the highest currently assigned ID, not an auto-increment forecast.
-`roleSiteId` identifies the active site for role counts, administrator count, and
-users without a recognized role. Role counts can overlap for users with multiple
-roles. On multisite, `siteUserCount` and per-site memberships count distinct
-existing users with stored site capability keys, including empty/malformed values;
-they are membership evidence, not effective access checks or super-admin counts.
-Network users with no active-site membership are excluded from its role summary.
-Single-site role summaries include every user. The `migration_analyze_users` tool
-exposes these results.
-
-Duplicate email/login counts report extra accounts beyond the first in each
-equal-value group, including blank values, using database collation semantics.
-Actual emails, logins, passwords, activation keys, and auth-related meta values
-are never returned. Aggregate queries count duplicates, memberships, orphaned
-usermeta rows, and existing users with more than 1,000 meta rows. Capability-key
-checks cover this installation's base prefix; unknown site prefixes, unexpected
-keys, and duplicate rows become warnings. Active-site role parsing uses the
-lowest capability meta ID per user in batches of 500, with object deserialization
-disabled and a 64 KiB/16-level decoding limit. Malformed or non-boolean values
-produce summary warnings. Role names come from the runtime registry; registered
-role keys count as roles even when their stored value is false, matching WordPress.
-
-User analysis skips plugins/themes and uses persisted role definitions; dynamic
-plugin roles or authorization filters may differ. Only active-site capability
-values are decoded. Exact aggregates still require index/group scans and may be
-costly on large installations; queries are not a transactional snapshot. The
-existing process timeout/output limit and trusted-bootstrap limitations apply.
-Unavailable optional usermeta risk counts produce a warning rather than zero.
-No user records or arbitrary usermeta values are loaded into the Node process.
-
-The internal `MediaAnalyzer.analyze()` returns attachment summaries for the active
-site only, including all stored attachment statuses, deterministic MIME/category
-counts, ID bounds, missing metadata, missing parents, and upload configuration.
-The `migration_analyze_media` tool exposes the default summary.
-`unattachedAttachments` means
-`post_parent = 0` and is not a broken-media warning; `orphanedAttachments` means a
-nonzero parent ID has no existing post. Missing metadata means absent/empty data,
-not invalid serialized data. Some formats legitimately lack attachment metadata.
-The lowest meta ID supplies the primary attached-file value if duplicates exist.
-
-Uploads come from `wp_upload_dir(null, false)`, which disables directory creation,
-and the year/month option. Plugins/themes load so upload-directory filters apply;
-the trusted-bootstrap limitations above remain. `siteId` and `multisite` identify
-the current WP-CLI site; network sites are never scanned automatically. Custom
-upload directories, URLs, and multisite paths are taken from this runtime rather
-than inferred from `wp-content/uploads`.
-
-Physical checks are opt-in: `analyze({ checkLocalFiles: true })`. They use keyset
-pages of at most 100 attachments, bounded by the initial maximum ID, and inspect
-filesystem metadata only. References exceeding 1,024 bytes are withheld and
-reported as unsafe. Relative references resolve under the configured upload base;
-legacy absolute references are accepted only inside that base. Traversal, stream
-wrappers, and symlinks below the trusted base are rejected. The base itself may
-resolve through a configured symlink. No file contents are read, no files are
-hashed, and no directories are recursively scanned. These checks assume a stable,
-trusted filesystem; they are not a sandbox against concurrent symlink changes.
-
-`checkedLocalFiles` counts definitive present/missing results; `missingLocalFiles`
-counts confirmed absences within that subset. Permissions, unavailable upload
-storage, oversized paths, and unsafe references produce warnings rather than
-false missing-file counts. A wholly inconclusive check omits `missingLocalFiles`.
-Without opt-in, both file counts are omitted with `LOCAL_FILES_NOT_CHECKED`.
-Generated sizes, thumbnails, original-image metadata, and dangling postmeta are
-not inspected. `externalMediaCount` counts explicit HTTP(S), FTP, S3, GS, or
-protocol-relative URI indicators in the primary attached-file value. It does not
-verify remote availability or detect every offload plugin/CDN; a missing local
-file alone is not offload evidence. No remote requests are made.
-
-Summary SQL uses aggregates without loading attachment records into Node.
-Exact counts still require database scans. Optional file checks take one WP-CLI
-bootstrap per page plus filesystem operations per path component, so they can be
-expensive on large sites or slow storage. Memory remains bounded by the page size.
-The process timeout/output limit applies to each command, not the whole analysis.
-Media inspection requires 64-bit PHP. Reads are not a transactional snapshot;
-concurrent edits may cause validation
-failures or a changed-count warning. Same-count edits may be undetectable.
-
-The internal `UrlReferenceAnalyzer.analyze()` returns URL/reference summaries,
-exposed by `migration_analyze_urls`. It scans the active site's `posts.post_content`,
-`posts.post_excerpt`, `postmeta.meta_value`, `options.option_value`,
-`termmeta.meta_value`, `comments.comment_content`, and `commentmeta.meta_value`
-through fixed WP-CLI PHP and read-only SQL. Table names come from `$wpdb`, including
-multisite prefixes. It does not scan other network sites, usermeta, GUIDs, comment
-author identities, network options, or custom tables.
-
-`totalReferences` counts HTTP(S) and protocol-relative URL occurrences, including
-repeated URLs, not matching rows or unique URLs. Hosts are lowercased, stripped of
-trailing dots, and grouped independently of ports and protocols. HTTP, HTTPS, and
-protocol-relative counts are separate. `sourceUrlReferences` matches configured
-site/home hostnames exactly; everything else is external, without implying a
-problem. `siteUrlReferences`, `homeUrlReferences`, and `uploadUrlReferences` match
-host, normalized port, and a path boundary, ignoring scheme; these counts may
-overlap. Observed `www` variants are reported as `alternateSourceHosts` hints,
-not verified ownership. Host maps, location summaries, and warnings are sorted.
-
-Serialized-looking values are detected with `is_serialized()` and scanned as
-text, never unserialized or rewritten. Valid JSON is decoded to arrays/scalars
-with a depth limit of 32; string values are scanned once, including escaped URLs.
-Malformed JSON falls back to text scanning. Serialized/JSON counters count URL
-occurrences within those values. Development indicators include loopback URLs,
-`.local`, `.test`, `.localhost`, and delimited dev/staging hostname labels.
-External media hints use the configured upload URL, a small CDN hostname list,
-`cdn` labels, and common media extensions. Filesystem hints recognize common
-absolute Unix roots and Windows drive paths, excluding paths inside URL tokens.
-Only counts are returned; files, hosts, and remote media are never accessed.
-
-Raw rows stay inside PHP. Secret-bearing option/meta keys and transient entries
-are excluded in SQL; sensitive JSON fields are skipped. No post content, option
-values, discovered full URLs, or filesystem paths are returned. Configured URLs
-omit userinfo, query strings, and fragments. Key-name filtering is conservative
-and may exclude useful data; it is not an exhaustive classification of secrets.
-Returned hostnames and configured URL paths remain intentional inventory data.
-
-Each fixed location uses 100-value primary-key pages bounded by its initial
-maximum ID. Values over 64 KiB, NUL-containing values, and invalid UTF-8 are skipped
-with counters/warnings. Host maps retain at most 1,000 encountered hosts; omitted
-host occurrences remain in totals and `unreportedHostReferences`. Memory is
-bounded; one WordPress bootstrap handles the scan, but reading large core tables
-can still be expensive and the existing process timeout/output limit applies.
-Reads are not a consistent snapshot. Only ASCII/punycode DNS names and IP literals
-are recognized; bare hostnames, encoded/compressed content, deeply nested JSON,
-and uncommon filesystem paths may be missed. Counts are observations within this
-scope, not a replacement plan or a complete reference audit. Plugins/themes load
-for effective upload configuration, with directory creation disabled; existing
-trusted-bootstrap limitations apply. A 64-bit PHP runtime is required.
-
-The project aims to support MCP clients such as ChatGPT, Codex, Claude Code, and
-VS Code-compatible clients. Local clients that support stdio can launch the
-server as described below; client-specific integrations have not been validated.
-
-## Start locally
+Migrate MCP currently runs from a **local checkout**. The package is marked
+`"private": true` and is not published for npm installation.
 
 ```sh
+git clone https://github.com/abhishekfdd/migrate-mcp.git
+cd migrate-mcp
 npm ci
 npm run build
 npm start --silent
@@ -273,9 +68,9 @@ The server waits for MCP messages on stdin and writes protocol responses to
 stdout. It does not print a startup banner or open an HTTP port. Diagnostics go
 to stderr. Stop a manual session with Ctrl+C.
 
-For an MCP client that supports local stdio servers, use `node` as the command
-and the absolute path to `dist/index.js` as its argument. For example, clients
-using an `mcpServers` configuration can use:
+### Configure an MCP client
+
+For clients using an `mcpServers` configuration, use:
 
 ```json
 {
@@ -288,19 +83,14 @@ using an `mcpServers` configuration can use:
 }
 ```
 
-Replace the example path with your checkout path. The client must be able to find
-a supported Node.js version. Launching Node directly keeps npm's script banners
-out of the protocol stream. Rebuild after changing TypeScript source files.
+Replace the example path with your checkout path. The client launches the server
+and must be able to find a supported Node.js version. Launching Node directly
+keeps npm's script banners out of the protocol stream. Rebuild after changing
+TypeScript source files.
 
-The server identifies itself as `migrate-mcp`, using the version from
-`package.json`. To call `migration_site_info`, the server host needs PHP, `wp` on
-its process `PATH`, and access to a trusted WordPress installation and its
-database. The configured server command above is unchanged; the WordPress path
-is provided as a tool argument, not as the server's working directory.
-
-## Call the site information tool
-
-After the MCP client connects, invoke `migration_site_info` with:
+The server identifies itself as `migrate-mcp`, using the version in `package.json`.
+WordPress installation paths are tool arguments, not the server's working directory.
+After connecting, try `migration_site_info` with:
 
 ```json
 {
@@ -308,8 +98,53 @@ After the MCP client connects, invoke `migration_site_info` with:
 }
 ```
 
-The path must be absolute on the server host. Empty paths, NUL bytes, and extra
-input properties are rejected. A `tools/call` request looks like:
+## Example workflow
+
+With both installation paths supplied to your MCP client, a conversation might
+look like this. Findings depend on the sites being analyzed.
+
+```text
+User:
+Compare these two WordPress installations and identify migration risks.
+
+Migrate MCP, through the agent:
+- reports content-type and taxonomy differences
+- reports custom tables requiring review
+- identifies overlapping user ID ranges
+- summarizes media metadata and parent anomalies
+- reports environment-specific URL references
+
+User:
+Generate a migration plan.
+
+Migrate MCP, through the agent:
+- produces ordered phases and preparation steps
+- reports blockers
+- identifies unresolved decisions
+- provides post-migration validation requirements
+```
+
+The plan is a reviewable artifact; it does not execute the migration or validation.
+
+## Implemented MCP tools
+
+| Tool                           | Purpose                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| `migration_site_info`          | Inspect WordPress/runtime versions, URLs, table prefix, and multisite status.  |
+| `migration_database_info`      | Summarize database metadata, table counts, and estimated size.                 |
+| `migration_list_content_types` | List registered post types, configuration, and post counts.                    |
+| `migration_list_taxonomies`    | List registered taxonomies, configuration, and term counts.                    |
+| `migration_list_custom_tables` | List non-core tables with metadata estimates and scope/reference hints.        |
+| `migration_analyze_users`      | Summarize users, roles, memberships, ID ranges, and usermeta risks.            |
+| `migration_analyze_media`      | Summarize attachments, metadata/parent anomalies, and upload configuration.    |
+| `migration_analyze_urls`       | Summarize URL dependencies, external hosts, and environment references.        |
+| `migration_compare_sites`      | Compare source and target installations and categorize migration risks.        |
+| `migration_generate_plan`      | Analyze both sites and produce phases, decisions, and validation requirements. |
+
+### Tool inputs and responses
+
+The first eight tools accept only `path`, an absolute WordPress installation path
+on the server host. For example, this is a complete MCP `tools/call` request:
 
 ```json
 {
@@ -317,245 +152,14 @@ input properties are rejected. A `tools/call` request looks like:
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "migration_site_info",
-    "arguments": {
-      "path": "/absolute/path/to/wordpress"
-    }
+    "name": "migration_analyze_urls",
+    "arguments": { "path": "/absolute/path/to/wordpress" }
   }
 }
 ```
 
-Successful results include a `structuredContent` object such as:
-
-```json
-{
-  "wordpressVersion": "6.8.3",
-  "isMultisite": false,
-  "siteUrl": "https://example.com/wordpress",
-  "homeUrl": "https://example.com",
-  "tablePrefix": "wp_",
-  "phpVersion": "8.3.0",
-  "wpCliVersion": "2.12.0"
-}
-```
-
-The same JSON is returned in a text content block for compatibility. Known
-execution failures return `isError: true` with an error code and guidance, such
-as `EXECUTABLE_NOT_FOUND` or `TIMEOUT`. Raw subprocess output and exception
-details are not included in tool errors.
-
-## Call the database information tool
-
-Use the same server configuration and WordPress prerequisites. After connecting,
-call `migration_database_info` with the same strict, absolute-path input:
-
-```json
-{
-  "name": "migration_database_info",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-This is the `params` object for a `tools/call` request. The result contains
-`structuredContent` plus the same JSON in a text block: database name and host,
-table prefix, numeric total/core/custom table counts, and multisite status.
-Size in bytes, database-default charset/collation, and multisite `siteCount` are
-included when available. Credentials and connection secrets are excluded.
-Counts cover visible base tables across the database; size is a metadata estimate.
-Errors follow the site information tool's `isError: true` convention.
-
-## Call the content type information tool
-
-Use the same server configuration and WordPress prerequisites. To list all
-registered content types, including built-in, internal, and custom types, send
-this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_list_content_types",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Input uses the same strict, absolute-path validation as the other tools. Results
-contain `structuredContent: { "contentTypes": [...] }` plus matching JSON in a
-text block. Each entry includes metadata such as capability type, REST
-configuration, supports, and numeric post counts, with optional values included
-when available. The analyzer's deterministic ordering is preserved. Counts cover
-all statuses for the active site; this inspection loads plugins and the active
-theme as described above. Errors use the same `isError: true` convention.
-
-## Call the taxonomy information tool
-
-Use the same server configuration and WordPress prerequisites. To list all
-registered taxonomies, including built-in, internal, and custom taxonomies,
-send this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_list_taxonomies",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Input uses the same strict, absolute-path validation as the other tools. Results
-contain `structuredContent: { "taxonomies": [...] }` plus matching JSON in a text
-block. Entries preserve the analyzer's metadata: associated object types, REST
-configuration, rewrite settings, built-in/custom status, and numeric term counts.
-Optional metadata is included when available. Taxonomies and their object types
-retain the analyzer's deterministic ordering. Counts include unused terms for
-the active site. Runtime and bootstrap limitations described above apply, and
-errors use the same `isError: true` convention.
-
-## Call the custom table information tool
-
-Use the same server configuration and WordPress prerequisites. To list non-core
-database tables with estimated rows and sizes, multisite scope, and likely plugin
-ownership where it can be inferred, send this `params` object in a `tools/call`
-request:
-
-```json
-{
-  "name": "migration_list_custom_tables",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Input uses the same strict, absolute-path validation as the other tools. Results
-contain `structuredContent: { "customTables": [...] }` plus matching JSON in a
-text block, preserving the analyzer's ordering, numeric estimates, optional
-metadata, `scope`, and `referenceHints`. Ownership and reference hints are not
-verified relationships; base-prefixed multisite tables can retain ambiguous
-`network-or-main-site` scope. The tool adds no filtering and exposes no SQL,
-commands, or credentials. Existing analyzer limitations above apply; errors use
-the same `isError: true` convention.
-
-## Call the user analysis tool
-
-Use the same server configuration and WordPress prerequisites. To analyze user
-statistics, role distribution, multisite memberships, duplicate-account
-indicators, and usermeta risks, send this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_analyze_users",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Input uses the same strict, absolute-path validation as the other tools. The
-analysis is returned directly in `structuredContent` plus matching JSON text,
-preserving numeric counts/IDs, role ordering, structured memberships, and warnings.
-It includes `roleSiteId`, `siteUserCount`, and `administratorCount` from the domain
-model; role summaries apply to the active site while totals cover the shared
-users table. Optional fields remain absent when unavailable. User records, auth
-secrets, raw capabilities, and duplicate email/login values are excluded.
-Existing analyzer limitations above apply. Errors use `isError: true` with
-sanitized guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
-
-## Call the media analysis tool
-
-Use the same server configuration and WordPress prerequisites. To report attachment
-counts, MIME distribution, missing metadata, unattached/orphaned attachments,
-upload configuration, external-reference indicators, and migration risks, send
-this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_analyze_media",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Input uses the same strict, absolute-path validation as the other tools; only
-`path` is accepted. The domain analysis is returned directly in `structuredContent`
-plus matching JSON text, preserving numeric counts/IDs, MIME/category objects,
-booleans, optional fields, and ordered warnings. `siteId` and `multisite` identify
-the active site. Upload paths are limited to the configuration returned by the
-analyzer; individual attachment paths and file contents are not returned.
-
-This tool calls the analyzer's default summary mode. Physical file checks are
-not enabled: `missingLocalFiles` and `checkedLocalFiles` are omitted, with a
-`LOCAL_FILES_NOT_CHECKED` warning. It does not accept a `checkLocalFiles` option.
-Other analyzer limitations above apply. Failures use `isError: true` and sanitized
-guidance; malformed analyzer output returns `INVALID_ANALYZER_RESPONSE`.
-
-## Call the URL/reference analysis tool
-
-Use the same server configuration and WordPress prerequisites. To analyze URL
-references, source-domain dependencies, external hosts, development URLs,
-serialized/JSON references, filesystem hints, and their database locations, send
-this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_analyze_urls",
-  "arguments": { "path": "/absolute/path/to/wordpress" }
-}
-```
-
-Only `path` is accepted, using the existing strict absolute-path validation.
-The complete domain summary is returned directly in `structuredContent` plus
-matching JSON text, preserving numeric counts, host maps, location arrays,
-warnings, optional configuration URLs, and analyzer ordering. Counts represent
-URL occurrences, not unique URLs or matching rows. `siteId` and `multisite`
-identify the active site, and scan-limit counters/warnings remain visible.
-No raw matching rows, content, option/meta values, or SQL are returned.
-Existing analyzer scope and limits above apply. Errors use `isError: true` with
-sanitized guidance; malformed analyzer results return `INVALID_ANALYZER_RESPONSE`.
-
-## Source/target comparison (domain service)
-
-`SiteComparisonService.compare({ sourcePath, targetPath })` accepts two absolute
-WordPress installation paths and returns a read-only comparison, exposed through
-`migration_compare_sites`. It reuses the site/database services and content type,
-taxonomy, custom table, user, media, and URL analyzers once per side. Tests inject
-these services; no WordPress installation is required.
-
-The result contains source/target identities, runtime comparisons, registration
-sets and configuration differences, table matches, user/media/reference summaries,
-and sorted findings with summary counts. Unavailable optional metadata is marked
-`unknown`, not replaced with zero or treated as a mismatch. Post/term/table count
-differences describe volume. Supports and associated post types are compared as
-sets; capability-type arrays retain their singular/plural order.
-
-Findings use stable codes and categories. Single-site/multisite mode mismatch is
-`blocking` for direct migration; missing source registrations, missing active-site
-custom tables, and user ID-range overlap are `high` risks. Configuration/version
-differences and analyzer warnings require review. `info` and `warning` findings
-appear in `warnings`; `high` and `blocking` findings appear in `conflicts`.
-`warningCount` includes informational findings. Equal versions do not certify
-compatibility, and overlapping ranges do not prove individual user ID collisions.
-
-Custom tables match active-site logical names across prefixes. Network/main-site
-logical matches and other exact-name/scope matches retain ownership warnings;
-ambiguous matches are not paired. Other blogs are not equated by blog ID or table
-suffix. Plugin names remain hints, and schemas are not compared. Row counts and
-sizes remain metadata estimates. User totals/ranges cover shared network users;
-roles describe the active site. Membership summaries compare characteristics,
-not site identities or individual accounts.
-
-One source/target service pair runs at a time (two service calls; existing services
-may run multiple WP-CLI calls internally). Each pair settles before proceeding.
-A failed service rejects the whole comparison with its original error; if both
-sides fail, the source error wins. No partial result is returned. Collection is
-not an atomic snapshot: run against stable installations. Existing services may
-repeat their underlying metadata reads; the comparison adds no discovery commands.
-
-Media uses the analyzer's default summary mode, without physical file checks;
-missing-local-file counts may therefore be unknown. URL results retain scan-limit
-counters and warnings. Target hosts marked `not-observed` were absent from the
-bounded scan, not proven absent from the database. Source-only observed media
-hosts are dependency hints, not proof of exclusive CDN ownership; filesystem
-indicators do not prove source-path ownership. Database inventory can include
-other installations, while most analyzers cover only the active site. No account
-matching, file comparison, replacements, mappings, plans, or execution are performed.
-
-## Call the site comparison tool
-
-To compare two trusted local WordPress installations for configuration differences,
-custom tables, user-ID risks, media issues, and environment-specific references,
-send this `params` object in a `tools/call` request:
+Comparison and planning accept `sourcePath` and `targetPath`. Use this `params`
+object in a `tools/call` request:
 
 ```json
 {
@@ -567,149 +171,269 @@ send this `params` object in a `tools/call` request:
 }
 ```
 
-Both paths are required, non-blank absolute paths; additional properties and NUL
-bytes are rejected. Paths that normalize to the same absolute path return
-`SAME_INSTALLATION` before comparison. This is a lexical check: symlinks, filesystem
-aliases, and separate directories sharing a database are not identified.
+Use `migration_generate_plan` with the same arguments to run comparison and then
+generate a plan. Blank/relative paths, NUL bytes, and additional properties are
+rejected. Two paths that normalize to the same absolute path return
+`SAME_INSTALLATION`; this lexical check does not detect symlink aliases or
+separate directories sharing a database.
 
-The existing domain response is returned in `structuredContent` and matching JSON
-text, preserving arrays, optional values, severity/code fields, and summary counts.
-The MCP layer does not sort, reclassify findings, or generate a plan. Any service
-failure returns `isError: true` with sanitized guidance and no partial comparison.
-The engine's errors do not reliably identify the failing side; check both
-installations using the individual analysis tools when needed. Malformed results
-return `INVALID_COMPARISON_RESPONSE`. Existing comparison limitations above apply.
+Successful calls return `structuredContent` and matching JSON in a text content
+block. Content types, taxonomies, and custom tables use `contentTypes`,
+`taxonomies`, and `customTables` array wrappers respectively; other tools return
+their result object directly. Optional fields remain absent when unavailable.
+Known execution failures return `isError: true` with a code and sanitized guidance
+(such as `EXECUTABLE_NOT_FOUND` or `TIMEOUT`), without raw subprocess output or
+exception details. Comparison/planning failures return no partial result; inspect
+both sites individually if the failing side is unclear. Invalid results are
+reported as errors, including `INVALID_ANALYZER_RESPONSE`,
+`INVALID_COMPARISON_RESPONSE`, or `INVALID_PLAN_RESPONSE`; planner failures use
+`PLANNING_FAILED`.
 
-## Migration planning (domain service)
+## Safety / read-only model
 
-`MigrationPlanner.generatePlan({ comparison })` converts a complete
-`SiteComparison` into a deterministic `MigrationPlan`. It is a pure, synchronous
-domain operation: it does not rerun analysis, access WordPress, or perform I/O.
-The `migration_generate_plan` MCP tool invokes comparison before this planner.
+The current implementation does not:
 
-The result explicitly reports `kind: "migration-plan"` and
-`executionPerformed: false`, with issues, ordered phases, steps, validation
-requirements, unresolved decisions, and manual-review step IDs. It contains no
-executable commands, SQL, calculated ID mappings, or completed steps.
-`automated` describes potential future automation only. Every step still requires
-confirmation before any separately implemented execution workflow.
+- Modify database records or files.
+- Perform search-replace.
+- Migrate content or remap IDs.
+- Copy media or create database tables.
+- Execute migration plans or validation steps.
 
-Readiness is `blocked` when comparison findings include blocking severity,
-`ready_with_warnings` when significant findings, unresolved decisions, or
-medium/high-risk manual reviews remain, and `ready` otherwise. It describes the
-supplied evidence, not authorization or a guarantee that migration is safe.
-Routine preflight confirmation alone does not reduce readiness. Informational
-issues are preserved and included in `warningCount`, but only reduce readiness
-when they imply a concrete unresolved action or decision. Counts are computed
-from the plan rather than copied from the comparison summary.
+WordPress runtime inspection uses fixed internal PHP through WP-CLI where needed.
+MCP tools expose neither caller-provided arbitrary PHP nor arbitrary SQL execution.
+WP-CLI runs through an adapter using direct process execution without shell parsing;
+there are no mutation commands or direct MySQL connections.
 
-Known findings map to explicit preparation actions for topology, runtimes,
-registrations, custom tables, identities, uploads, and references. Related actions
-are grouped with sorted affected keys/names. Step risk is separate from issue
-severity: missing taxonomy preparation is medium risk; ID-collision strategy is
-high risk. Unknown significant findings and analyzer limitations remain manual
-review work. All decisions stay unresolved, including source-only data scope,
-existing target-data policy, external media hosting, and reference retention.
+Use trusted installations. WordPress bootstrap can execute installation code,
+including must-use plugins and drop-ins even when plugins/themes are skipped.
+Loading that code can have its own side effects: read-only inspection is not an
+isolation boundary for untrusted WordPress code.
 
-Preflight and validation are always present. Other phases appear only for
-relevant findings or source data. Phases conservatively depend on all generated
-earlier phases; validation depends on all applicable phases. Checks cover only
-relevant registrations, content/term counts, user identity handling, reviewed
-custom-table schemas/data, media availability, and approved URL/path policies.
-Counts must account for exclusions and retained target data; table statistics
-remain estimates, and intentional source/development references may remain.
+User analysis returns summaries, not user records, emails, logins, passwords, or
+auth-related meta values. URL analysis excludes secret-bearing option/meta keys,
+transients, and sensitive JSON fields, and returns no raw content or discovered
+full URLs. This filtering is conservative, not exhaustive secret classification.
+Configured URL paths, hostnames, database metadata, and upload configuration are
+intentional inventory data; configured URLs in URL analysis omit userinfo, query
+strings, and fragments.
 
-The planner inherits the comparison's scope, unknown metadata, scan limits, and
-non-atomic collection. It cannot infer plugin ownership, schemas, account matches,
-or storage permissions, and it does not verify backups or execute validation.
-Plans require human review and fresh evidence before a future execution phase.
+## Architecture
 
-## Call the migration planning tool
-
-To analyze source and target installations and generate a plan with blockers,
-preparation steps, ordered phases, unresolved decisions, risks, and validation
-requirements, send this `params` object in a `tools/call` request:
-
-```json
-{
-  "name": "migration_generate_plan",
-  "arguments": {
-    "sourcePath": "/absolute/path/to/source-wordpress",
-    "targetPath": "/absolute/path/to/target-wordpress"
-  }
-}
+```text
+src/
+├── mcp/         MCP transport, tool registration, validation, and response handling
+├── wordpress/   Safe WordPress/WP-CLI integration
+├── migration/   Migration analyzers, comparison engine, and planning engine
+└── utils/       Shared low-level utilities
 ```
 
-`migration_generate_plan` is **read-only and does not execute migrations**. It
-runs the existing comparison service once, then passes the complete result to
-the planner. The existing `MigrationPlan` is returned in `structuredContent` and
-matching JSON text. Readiness, dependencies, decisions, and ordering are preserved;
-`automated` describes future potential, and `executionPerformed` remains `false`.
+MCP handlers are thin: they validate inputs and responses and delegate migration
+logic to domain services. The server uses the official TypeScript MCP SDK v2 server
+package over stdio. The WP-CLI adapter centralizes fixed inspection commands and
+process limits; services can be tested with injected adapters and mock runners.
 
-The tool uses the comparison tool's strict two-path validation and rejects paths
-that normalize to the same path. Symlink aliases and shared databases are not
-identified. No execution, dry-run, mapping, or command input is accepted.
-Comparison failures stop planning with sanitized errors and no partial result.
-Planner failures return `PLANNING_FAILED`; malformed plans return
-`INVALID_PLAN_RESPONSE`. Existing comparison and planning limitations above apply.
+## How analysis works
+
+- **WP-CLI and runtime inspection:** Fixed internal PHP reads effective WordPress
+  configuration and registrations. Site/database metadata and user analysis skip
+  plugins/themes; content types, taxonomies, media, and URLs load them for runtime
+  registrations or upload filters. CLI packages are skipped throughout. Upload
+  configuration uses `wp_upload_dir(null, false)` to avoid directory creation.
+- **Read-only database queries:** Database/custom-table inspection uses core table
+  mappings and `information_schema` metadata. Content, taxonomy, user, and media
+  summaries use aggregates; URL analysis scans selected core fields. MCP analysis
+  returns summaries without loading raw user, attachment, or URL-content rows
+  into the Node process.
+- **Bounded analysis:** Active-site user roles are decoded in batches of 500 with
+  object deserialization disabled and 64 KiB/16-level limits. URL scans use
+  100-value primary-key pages bounded by initial maximum IDs. Internal opt-in
+  media file checks use pages of at most 100 attachments.
+- **Deterministic output:** Inventories, host summaries, and findings use stable
+  ordering. Comparison reuses all eight inspection services once per side, one
+  source/target service pair at a time. Unavailable comparison metadata is marked
+  `unknown`, rather than treated as zero or a mismatch.
+- **Planning:** The MCP planning tool runs comparison, then passes its complete
+  result to the pure, synchronous `MigrationPlanner.generatePlan({ comparison })`.
+  The planner performs no I/O and produces deterministic phases, dependencies,
+  issues, unresolved decisions, manual reviews, and validation requirements.
+
+Plans report `kind: "migration-plan"` and `executionPerformed: false`. They contain
+no executable commands, SQL, calculated ID mappings, or completed steps;
+`automated` describes potential future automation only. Preflight and validation
+are always present; other phases depend on relevant findings/data, and each phase
+conservatively depends on all generated earlier phases.
+
+Readiness is `blocked` for blocking findings, `ready_with_warnings` for significant
+findings, unresolved decisions, or medium/high-risk manual reviews, and `ready`
+otherwise. Informational issues count toward `warningCount` but affect readiness
+only when they imply unresolved work. Readiness describes the available evidence,
+not execution authorization or a guarantee of safety.
+
+## Limitations
+
+### Runtime and multisite scope
+
+Analysis reflects the WP-CLI runtime. PHP may differ from the web server, and
+registrations conditional on web/admin/REST requests or WP-CLI configuration may
+not appear. Runtime labels follow the locale; implicit REST bases are not inferred.
+User analysis uses persisted roles, so dynamic plugin roles/authorization filters
+may differ.
+
+Most analyzers cover only the active site selected by WP-CLI; media and URL scans
+do not automatically traverse a multisite network. User totals and ID bounds
+cover the shared users table, while roles cover the active site. Memberships are
+stored capability-key evidence, not effective access or super-admin checks.
+Database inventories cover visible base tables across the database, potentially
+including other installations.
+
+### Large sites and consistency
+
+Exact aggregates and URL scans can be expensive even with bounded memory.
+Metadata work scales with table/site counts. Each subprocess has a default
+30-second timeout and a 1 MiB output limit per stream, not a whole-analysis budget.
+Internal file checks add one WP-CLI bootstrap per page and filesystem operations
+per path component, which can be costly on slow storage.
+
+Reads and source/target collection are not transactional snapshots. Concurrent
+edits can cause inconsistent observations, changed-count warnings, or validation
+failures; same-count edits may be undetectable. Use stable installations and
+refresh evidence before acting on a plan.
+
+### Counts, registrations, and custom tables
+
+- Post counts include all statuses (including drafts, trash, and auto-drafts) for
+  registered types. Taxonomy counts include unused stored terms, not post
+  assignments or referential-integrity checks. Unregistered types/taxonomies with
+  leftover rows are omitted. Runtime capability normalization can lose the
+  original plural capability type; custom archive slugs are preserved.
+- User role counts can overlap. Duplicate email/login counts measure extra
+  accounts per equal-value group, including blanks, using database collation.
+  `maxUserId` is the highest assigned ID, not an auto-increment forecast. Role
+  parsing uses the lowest capability meta ID; malformed values and unexpected
+  membership keys produce warnings. Unavailable optional risk counts remain
+  unknown. Registered role keys count even when their stored value is false,
+  matching WordPress. Usermeta summaries include orphaned rows and users with
+  over 1,000 meta rows, without returning their values.
+- Custom tables are visible base tables absent from the installed core mapping;
+  views are excluded. Core discovery accounts for registered blogs, network
+  tables, and custom user-table overrides. Legacy/deleted-blog tables and other
+  installations can appear as custom. Owner names and `referenceHints` are naming
+  hints, not verified plugin ownership or foreign keys.
+- Custom-table contents are not scanned, schemas are not compared, and row/size
+  statistics are metadata estimates. Prefix-based scope can be ambiguous:
+  base-prefixed multisite tables may be `network-or-main-site`, and unknown
+  numeric prefixes remain `unknown`. Logical names remove recognized prefixes;
+  active-site logical names support matching across source/target prefixes, but
+  ambiguous matches are not paired and other blogs are not equated by blog ID.
+
+### Media and filesystem checks
+
+The MCP media tool accepts only `path` and uses summary mode. It does **not** accept
+`checkLocalFiles`; `checkedLocalFiles` and `missingLocalFiles` are omitted with
+`LOCAL_FILES_NOT_CHECKED`. Comparison and planning inherit this limit.
+
+Attachment summaries cover all stored statuses. `unattachedAttachments` means
+`post_parent = 0`, not broken media; `orphanedAttachments` means a nonzero parent
+has no existing post. Missing metadata means absent/empty data, not invalid
+serialization, and some formats legitimately lack it. The lowest meta ID supplies
+the primary attached-file value when duplicates exist. Generated sizes,
+thumbnails, original-image metadata, and dangling postmeta are not inspected.
+External-reference indicators do not verify remote availability or identify every
+offload plugin/CDN; missing local files alone do not prove offloading. No remote
+requests are made.
+
+The internal domain API supports `analyze({ checkLocalFiles: true })` for filesystem
+metadata checks only. Paths must remain inside the configured upload base;
+traversal, stream wrappers, symlinks below that base, and references over 1,024
+bytes are rejected. The base itself may be a configured symlink. No file contents,
+hashes, or recursive directory scans are used. Permission/storage/path problems
+produce warnings instead of false missing-file counts; wholly inconclusive checks
+omit `missingLocalFiles`. These checks assume a stable, trusted filesystem and
+are not a sandbox against concurrent symlink changes.
+
+### URL/reference analysis
+
+The scan covers the active site's `posts.post_content`, `posts.post_excerpt`,
+`postmeta.meta_value`, `options.option_value`, `termmeta.meta_value`,
+`comments.comment_content`, and `commentmeta.meta_value`. It excludes usermeta,
+GUIDs, comment author identities, network options, custom tables, and other sites.
+
+`totalReferences` counts HTTP(S) and protocol-relative occurrences, including
+repeats, not unique URLs or matching rows. Host maps lowercase names, strip
+trailing dots, and group independently of ports/protocols. Source-host counts
+match site/home hostnames exactly; site/home/upload URL counts also consider
+normalized ports and path boundaries, ignoring scheme, and may overlap. External
+hosts are not inherently problems; observed `www` variants and CDN/media/path
+indicators are hints, not verified ownership or dependencies.
+
+Serialized-looking values are scanned as text, never unserialized or rewritten.
+JSON string values are scanned with a depth limit of 32; malformed JSON falls back
+to text. Values over 64 KiB, containing NUL bytes, or invalid UTF-8 are skipped with
+counters/warnings. Host maps retain at most 1,000 encountered hosts; omitted
+occurrences remain in totals and `unreportedHostReferences`.
+
+Only ASCII/punycode DNS names and IP literals are recognized. Bare hostnames,
+encoded/compressed content, deeply nested JSON, and uncommon filesystem paths may
+be missed. Filtering can exclude useful data. A target host marked `not-observed`
+is absent from the bounded scan, not proven absent from the database. Results are
+observations within this scope, not a complete reference audit or replacement plan.
+
+### Comparison and planning
+
+Comparison reports differences and risk indicators, not individual account
+matches, file comparisons, or migration mappings. Overlapping user ID ranges do
+not prove individual collisions; equal versions do not certify compatibility.
+Count differences describe volume. Single-site/multisite mismatch is `blocking`
+for direct migration; missing source registrations, missing active-site custom
+tables, and user ID-range overlap are `high` risks. `info`/`warning` findings appear
+in `warnings`, and `high`/`blocking` findings in `conflicts`; `warningCount` includes
+informational findings. Any service failure stops the whole comparison.
+
+Plans inherit all analyzer scope and scan limits. They cannot infer schemas,
+verified ownership, account matches, or storage permissions, and do not verify
+backups. Source-data scope, retained target data, external hosting, and reference
+policies remain human decisions. Validation requirements must account for those
+decisions and estimated counts; every step requires review and confirmation
+before any separately implemented execution workflow.
 
 ## Development
 
-Requirements: Node.js 22.13+ (22.x) or 24+ and npm. WordPress and WP-CLI are not needed
-to start the server, discover tools, or run its mocked tests. Calling the site
-information tool requires the installation described above.
-
 ```sh
 npm ci
-npm run build
 npm test
+npm run build
 npm run lint
 npm run typecheck
 npm run format:check
 ```
 
-| Script                 | Purpose                                                              |
-| ---------------------- | -------------------------------------------------------------------- |
-| `npm start --silent`   | Start the compiled MCP server over stdio                             |
-| `npm run build`        | Compile `src/` to `dist/` with source maps                           |
-| `npm run typecheck`    | Check source, tests, and Vitest configuration without emitting files |
-| `npm test`             | Run tests once                                                       |
-| `npm run test:watch`   | Run tests in watch mode                                              |
-| `npm run lint`         | Lint JavaScript and TypeScript; fail on warnings                     |
-| `npm run format`       | Format project files with Prettier                                   |
-| `npm run format:check` | Check formatting without modifying files                             |
+| Command                | Purpose                                                               |
+| ---------------------- | --------------------------------------------------------------------- |
+| `npm test`             | Run tests once.                                                       |
+| `npm run test:watch`   | Run tests in watch mode.                                              |
+| `npm run build`        | Compile `src/` to `dist/` with source maps.                           |
+| `npm run lint`         | Lint JavaScript and TypeScript; fail on warnings.                     |
+| `npm run typecheck`    | Check source, tests, and Vitest configuration without emitting files. |
+| `npm run format`       | Format project files with Prettier.                                   |
+| `npm run format:check` | Check formatting without modifying files.                             |
 
 The project uses native ES modules and strict TypeScript. Tests and tooling
-configuration are excluded from the build. The package is marked private while
-the initial implementation is under development.
+configuration are excluded from the build. Adapter/domain tests use mocks and
+need no WordPress installation, database, or internet access. URL inspection also
+has PHP runtime tests with mocked WordPress functions and database responses;
+these run when `php` is on `PATH` and are skipped otherwise. Install PHP to exercise
+the extraction code as well as its TypeScript boundaries.
 
-URL inspection also has PHP runtime tests with mocked WordPress functions and
-database responses. They run when `php` is on PATH and are skipped otherwise;
-the adapter and domain tests always run. No WordPress installation, database,
-or internet access is needed. Install PHP locally to exercise the extraction
-code itself as well as its TypeScript boundaries.
+## Contributing
 
-## Structure
+Keep changes focused and run the development checks above before submitting a
+pull request. Update documentation when tool inputs, outputs, or limits change.
 
-```text
-src/
-  index.ts       Small application entry point
-  mcp/           MCP server factory, site information tool, and stdio setup
-  wordpress/     WP-CLI adapter and site information service
-  migration/     Content type, taxonomy, custom table, and user analyzers
-  utils/         Safe process execution utility
-tests/           Vitest tests
-```
+## License and trademark
 
-Migration execution has not been implemented.
-
-## Trademark
+[MIT](LICENSE).
 
 WordPress is a registered trademark of the WordPress Foundation.
 
 Migrate MCP is an independent open-source project and is not affiliated with,
 endorsed by, or sponsored by the WordPress Foundation or the WordPress project.
-
-## License
-
-[MIT](LICENSE).

@@ -53,7 +53,7 @@ describe('MCP server', () => {
     });
   });
 
-  it('exposes the analysis and comparison tools', async () => {
+  it('exposes the analysis, comparison, and planning tools', async () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name)).toEqual([
       'migration_site_info',
@@ -65,6 +65,7 @@ describe('MCP server', () => {
       'migration_analyze_media',
       'migration_analyze_urls',
       'migration_compare_sites',
+      'migration_generate_plan',
     ]);
     expect(tools[0]).toMatchObject({
       name: 'migration_site_info',

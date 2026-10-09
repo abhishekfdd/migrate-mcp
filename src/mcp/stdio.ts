@@ -14,6 +14,7 @@ import type { UserAnalyzerFactory } from './users-tool.js';
 import type { MediaAnalyzerFactory } from './media-tool.js';
 import type { UrlReferenceAnalyzerFactory } from './urls-tool.js';
 import type { SiteComparisonServiceFactory } from './compare-sites-tool.js';
+import type { MigrationPlannerFactory } from './generate-plan-tool.js';
 
 export function startStdioServer(
   transport: Transport = new StdioServerTransport(),
@@ -26,6 +27,7 @@ export function startStdioServer(
   createMediaAnalyzer?: MediaAnalyzerFactory,
   createUrlReferenceAnalyzer?: UrlReferenceAnalyzerFactory,
   createSiteComparisonService?: SiteComparisonServiceFactory,
+  createMigrationPlanner?: MigrationPlannerFactory,
 ): StdioServerHandle {
   return serveStdio(
     () =>
@@ -39,6 +41,7 @@ export function startStdioServer(
         createMediaAnalyzer,
         createUrlReferenceAnalyzer,
         createSiteComparisonService,
+        createMigrationPlanner,
       ),
     {
       transport,

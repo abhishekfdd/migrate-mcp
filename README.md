@@ -6,9 +6,9 @@ agents analyze, plan, and validate complex WordPress migrations.
 **Status: early development.** The server runs over stdio and exposes
 `migration_site_info`, `migration_database_info`, `migration_list_content_types`,
 `migration_list_taxonomies`, `migration_list_custom_tables`,
-`migration_analyze_users`, `migration_analyze_media`, `migration_analyze_urls`, and
-`migration_compare_sites`, which read metadata
-through the existing services and WP-CLI adapter. The temporary `ping` tool has
+`migration_analyze_users`, `migration_analyze_media`, `migration_analyze_urls`,
+`migration_compare_sites`, and `migration_generate_plan`, which use read-only
+metadata through the existing services and WP-CLI adapter. The temporary `ping` tool has
 been removed.
 Migration execution is not implemented.
 
@@ -547,7 +547,7 @@ return `INVALID_COMPARISON_RESPONSE`. Existing comparison limitations above appl
 `MigrationPlanner.generatePlan({ comparison })` converts a complete
 `SiteComparison` into a deterministic `MigrationPlan`. It is a pure, synchronous
 domain operation: it does not rerun analysis, access WordPress, or perform I/O.
-No planning MCP tool is registered yet.
+The `migration_generate_plan` MCP tool invokes comparison before this planner.
 
 The result explicitly reports `kind: "migration-plan"` and
 `executionPerformed: false`, with issues, ordered phases, steps, validation
@@ -585,6 +585,35 @@ The planner inherits the comparison's scope, unknown metadata, scan limits, and
 non-atomic collection. It cannot infer plugin ownership, schemas, account matches,
 or storage permissions, and it does not verify backups or execute validation.
 Plans require human review and fresh evidence before a future execution phase.
+
+## Call the migration planning tool
+
+To analyze source and target installations and generate a plan with blockers,
+preparation steps, ordered phases, unresolved decisions, risks, and validation
+requirements, send this `params` object in a `tools/call` request:
+
+```json
+{
+  "name": "migration_generate_plan",
+  "arguments": {
+    "sourcePath": "/absolute/path/to/source-wordpress",
+    "targetPath": "/absolute/path/to/target-wordpress"
+  }
+}
+```
+
+`migration_generate_plan` is **read-only and does not execute migrations**. It
+runs the existing comparison service once, then passes the complete result to
+the planner. The existing `MigrationPlan` is returned in `structuredContent` and
+matching JSON text. Readiness, dependencies, decisions, and ordering are preserved;
+`automated` describes future potential, and `executionPerformed` remains `false`.
+
+The tool uses the comparison tool's strict two-path validation and rejects paths
+that normalize to the same path. Symlink aliases and shared databases are not
+identified. No execution, dry-run, mapping, or command input is accepted.
+Comparison failures stop planning with sanitized errors and no partial result.
+Planner failures return `PLANNING_FAILED`; malformed plans return
+`INVALID_PLAN_RESPONSE`. Existing comparison and planning limitations above apply.
 
 ## Development
 

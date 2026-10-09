@@ -10,7 +10,7 @@ export type SiteComparisonServiceFactory = () => Pick<
   'compare'
 >;
 
-const comparisonInputSchema = z.strictObject({
+export const comparisonInputSchema = z.strictObject({
   sourcePath: wordpressPathInputSchema.shape.path.describe(
     'Absolute path to the source WordPress installation on the MCP server host.',
   ),
